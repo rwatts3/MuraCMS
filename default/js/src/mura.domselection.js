@@ -44,8 +44,8 @@
 	modified version; it is your choice whether to do so, or to make such modified version available under the GNU General Public License
 	version 2 without this exception.  You may, if you choose, apply this exception to your own modified versions of Mura CMS. */
 
-;(function(window){
-	window.mura.DOMSelection=window.mura.Core.extend({
+;(function(root){
+	root.mura.DOMSelection=root.mura.Core.extend({
 		init:function(selection,origSelector){
 			this.selection=selection;
 			this.origSelector=origSelector;
@@ -68,11 +68,11 @@
 		},
 
 		ajax:function(data){
-			return window.mura.ajax(data);
+			return root.mura.ajax(data);
 		},
 
 		select:function(selector){
-			return window.mura(selector);
+			return root.mura(selector);
 		},
 
 		each:function(fn){
@@ -83,19 +83,26 @@
 		},
 
 		filter:function(fn){
-			return window.mura(this.selection.filter( function(el,idx,array){
+			return root.mura(this.selection.filter( function(el,idx,array){
 				return fn.call(el,el,idx,array);
 			}));
 		},
 
 		map:function(fn){
-			return window.mura(this.selection.map( function(el,idx,array){
+			return root.mura(this.selection.map( function(el,idx,array){
 				return fn.call(el,el,idx,array);
 			}));
 		},
 
 		isNumeric:function(val){
 			return isNumeric(this.selection[0]);
+		},
+
+		processMarkup:function(){
+			this.each(function(el){
+				root.mura.processMarkup(el);
+			});
+			return this;
 		},
 
 		on:function(eventName,selector,fn){
@@ -133,6 +140,7 @@
 			this.each(function(){
 				if(typeof this.addEventListener == 'function'){
 					var self=this;
+
 					this.addEventListener(
 						eventName,
 						function(event){
@@ -156,6 +164,8 @@
 		hover:function(handlerIn,handlerOut){
 			this.on('mouseover',handlerIn);
 			this.on('mouseout',handlerOut);
+			this.on('touchstart',handlerIn);
+			this.on('touchend',handlerOut);
 			return this;
 		},
 
@@ -171,7 +181,7 @@
 			} else {
 				this.each(function(el){
 					if(typeof el.submit == 'function'){
-						window.mura.submitForm(el);
+						root.mura.submitForm(el);
 					}
 				});
 			}
@@ -193,10 +203,13 @@
 						el[eventName]=null;
 					}
 				} else {
-					var elClone = el.cloneNode(true);
-					el.parentNode.replaceChild(elClone, el);
-					array[idx]=elClone;
-
+					if(typeof el.parentElement != 'undefined' && el.parentElement && typeof el.parentElement.replaceChild != 'undefined'){
+						var elClone = el.cloneNode(true);
+						el.parentElement.replaceChild(elClone, el);
+						array[idx]=elClone;
+					} else {
+						console.log("Mura: Can not remove all handlers from element without a parent node")
+					}
 				}
 
 			});
@@ -217,25 +230,25 @@
 			eventDetails=eventDetail || {};
 
 			this.each(function(el){
-				window.mura.trigger(el,eventName,eventDetail);
+				root.mura.trigger(el,eventName,eventDetail);
 			});
 			return this;
 		},
 
 		parent:function(){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
-			return window.mura(this.selection[0].parentNode);
+			return root.mura(this.selection[0].parentNode);
 		},
 
 		children:function(selector){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(this.selection[0].hasChildNodes()){
-				var children=window.mura(this.selection[0].childNodes);
+				var children=root.mura(this.selection[0].childNodes);
 
 				if(typeof selector == 'string'){
 					var filterFn=function(){return (this.nodeType === 1 || this.nodeType === 11 || this.nodeType === 9) && this.matchesSelector(selector);};
@@ -245,7 +258,7 @@
 
 				return children.filter(filterFn);
 			} else {
-				return window.mura([]);
+				return root.mura([]);
 			}
 
 		},
@@ -257,19 +270,19 @@
 				if(this.selection[0].nodeType=='1' || this.selection[0].nodeType=='11'){
 					var result=this.selection[0].querySelectorAll(selector);
 				} else if(this.selection[0].nodeType=='9'){
-					var result=window.document.querySelectorAll(selector);
+					var result=root.document.querySelectorAll(selector);
 				} else {
 					var result=[];
 				}
-				return window.mura(result);
+				return root.mura(result);
 			} else {
-				return window.mura([]);
+				return root.mura([]);
 			}
 		},
 
 		selector:function() {
 			var pathes = [];
-			var path, node = window.mura(this.selection[0]);
+			var path, node = root.mura(this.selection[0]);
 
 			while (node.length) {
 				var realNode = node.get(0), name = realNode.localName;
@@ -308,12 +321,12 @@
 
 		siblings:function(selector){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			var el=this.selection[0];
 
 			if(el.hasChildNodes()){
-				var silbings=window.mura(this.selection[0].childNodes);
+				var silbings=root.mura(this.selection[0].childNodes);
 
 				if(typeof selector == 'string'){
 					var filterFn=function(){return (this.nodeType === 1 || this.nodeType === 11 || this.nodeType === 9) && this.matchesSelector(selector);};
@@ -323,7 +336,7 @@
 
 				return silbings.filter(filterFn);
 			} else {
-				return window.mura([]);
+				return root.mura([]);
 			}
 		},
 
@@ -345,9 +358,9 @@
 		    for( var parent = el ; parent !== null  && parent.matchesSelector && !parent.matchesSelector(selector) ; parent = el.parentElement ){ el = parent; };
 
 		    if(parent){
-		    	 return window.mura(parent)
+		    	 return root.mura(parent)
 		    } else {
-		    	 return window.mura([]);
+		    	 return root.mura([]);
 		    }
 
 		},
@@ -355,7 +368,7 @@
 		append:function(el) {
 			this.each(function(){
 				if(typeof el == 'string'){
-					this.insertAdjacentHTML('beforeend', htmlString);
+					this.insertAdjacentHTML('beforeend', el);
 				} else {
 					this.appendChild(el);
 				}
@@ -363,19 +376,58 @@
 			return this;
 		},
 
-		appendMuraObject:function(data) {
-		    var el=createElement('div');
-		    el.setAttribute('class','mura-async-object');
+		appendDisplayObject:function(data) {
+			this.each(function(){
+				var el=document.createElement('div');
+			    el.setAttribute('class','mura-object');
 
-			for(var a in data){
-				el.setAttribute('data-' + a,data[a]);
-			}
+				for(var a in data){
+					el.setAttribute('data-' + a,data[a]);
+				}
 
-			this.append(el);
+				if(typeof data.async == 'undefined'){
+					el.setAttribute('data-async',true);
+				}
 
-			window.mura.processAsyncObject(this.node);
+				if(typeof data.render == 'undefined'){
+					el.setAttribute('data-render','server');
+				}
 
-			return el;
+				el.setAttribute('data-instanceid',root.mura.createUUID());
+
+				root.mura(this).append(el);
+
+				root.mura.processObject(el);
+
+				return el;
+			});
+		},
+
+		prependDisplayObject:function(data) {
+			this.each(function(){
+				var el=document.createElement('div');
+			    el.setAttribute('class','mura-object');
+
+				for(var a in data){
+					el.setAttribute('data-' + a,data[a]);
+				}
+
+				if(typeof data.async == 'undefined'){
+					el.setAttribute('data-async',true);
+				}
+
+				if(typeof data.render == 'undefined'){
+					el.setAttribute('data-render','server');
+				}
+
+				el.setAttribute('data-instanceid',root.mura.createUUID());
+
+				root.mura(this).prepend(el);
+
+				root.mura.processObject(el);
+
+				return el;
+			});
 		},
 
 		prepend:function(el) {
@@ -421,7 +473,7 @@
 
 			this.prepend(el);
 
-			window.mura.processAsyncObject(el);
+			root.mura.processAsyncObject(el);
 
 			return el;
 		},
@@ -520,7 +572,7 @@
 			}
 
 			this.each(function(el){
-				window.mura.evalScripts(el);
+				root.mura.evalScripts(el);
 			});
 
 			return this;
@@ -531,7 +583,7 @@
 			if(typeof htmlString != 'undefined'){
 				this.each(function(el){
 					el.innerHTML=htmlString;
-					window.mura.evalScripts(el);
+					root.mura.evalScripts(el);
 				});
 				return this;
 			} else {
@@ -544,20 +596,20 @@
 
 		css:function(ruleName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
-			if(typeof rulename == 'undefined' && typeof value == 'undefined'){
+			if(typeof ruleName == 'undefined' && typeof value == 'undefined'){
 				try{
-					return window.getComputedStyle(this.selection[0]);
+					return root.getComputedStyle(this.selection[0]);
 				} catch(e){
 					return {};
 				}
-			} else if (typeof attributeName == 'object'){
+			} else if (typeof ruleName == 'object'){
 				this.each(function(el){
 					try{
-						for(var p in attributeName){
-							el.style[p]=attributeName[p];
+						for(var p in ruleName){
+							el.style[p]=ruleName[p];
 						}
 					} catch(e){}
 				});
@@ -570,7 +622,7 @@
 				return this;
 			} else{
 				try{
-					return window.getComputedStyle(this.selection[0])[ruleName];
+					return root.getComputedStyle(this.selection[0])[ruleName];
 				} catch(e){}
 			}
 		},
@@ -595,7 +647,7 @@
 
 		offsetParent:function(){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			var el=this.selection[0];
 			return el.offsetParent || el;
@@ -603,12 +655,12 @@
 
 		outerHeight:function(withMargin){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			if(typeof withMargin == 'undefined'){
 				function outerHeight(el) {
 				  var height = el.offsetHeight;
-				  var style = window.getComputedStyle(el);
+				  var style = root.getComputedStyle(el);
 
 				  height += parseInt(style.marginTop) + parseInt(style.marginBottom);
 				  return height;
@@ -622,7 +674,7 @@
 
 		height:function(height) {
 		 	if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(typeof width != 'undefined'){
@@ -636,8 +688,8 @@
 			var el=this.selection[0];
 			//var type=el.constructor.name.toLowerCase();
 
-			if(el === window){
-				return window.innerHeight
+			if(el === root){
+				return root.innerHeight
 			} else if(el === document){
 				var body = document.body;
 		    	var html = document.documentElement;
@@ -645,7 +697,7 @@
 		                       html.clientHeight, html.scrollHeight, html.offsetHeight )
 			}
 
-			var styles = window.getComputedStyle(el);
+			var styles = root.getComputedStyle(el);
 			var margin = parseFloat(styles['marginTop']) + parseFloat(styles['marginBottom']);
 
 			return Math.ceil(el.offsetHeight + margin);
@@ -653,7 +705,7 @@
 
 		width:function(width) {
 		  	if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(typeof width != 'undefined'){
@@ -667,8 +719,8 @@
 			var el=this.selection[0];
 			//var type=el.constructor.name.toLowerCase();
 
-			if(el === window){
-				return window.innerWidth
+			if(el === root){
+				return root.innerWidth
 			} else if(el === document){
 				var body = document.body;
 		    	var html = document.documentElement;
@@ -676,12 +728,12 @@
 		                       html.clientWidth, html.scrolWidth, html.offsetWidth )
 			}
 
-		  	return window.getComputedStyle(el).width;
+		  	return root.getComputedStyle(el).width;
 		},
 
 		offset:function(){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			var el=this.selection[0];
 			var rect = el.getBoundingClientRect()
@@ -698,18 +750,18 @@
 
 		offset:function(attributeName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			var box = this.selection[0].getBoundingClientRect();
 			return {
-			  top: box.top  + ( window.pageYOffset || document.scrollTop )  - ( document.clientTop  || 0 ),
-			  left: box.left + ( window.pageXOffset || document.scrollLeft ) - ( document.clientLeft || 0 )
+			  top: box.top  + ( root.pageYOffset || document.scrollTop )  - ( document.clientTop  || 0 ),
+			  left: box.left + ( root.pageXOffset || document.scrollLeft ) - ( document.clientLeft || 0 )
 			};
 		},
 
 		removeAttr:function(attributeName){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			this.each(function(el){
@@ -724,11 +776,11 @@
 
 		changeElementType:function(type){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			this.each(function(el){
-				window.mura.changeElementType(el,type)
+				root.mura.changeElementType(el,type)
 
 			});
 			return this;
@@ -737,7 +789,7 @@
 
         val:function(value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(typeof value != 'undefined'){
@@ -756,7 +808,7 @@
 				return this;
 
 			} else {
-				if(this.selection[0].hasOwnProperty('value')){
+				if(Object.prototype.hasOwnProperty.call(this.selection[0],'value') || typeof this.selection[0].value != 'undefined'){
 					return this.selection[0].value;
 				} else {
 					return '';
@@ -766,11 +818,11 @@
 
 		attr:function(attributeName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(typeof value == 'undefined' && typeof attributeName == 'undefined'){
-				return window.mura.getAttributes(this.selection[0]);
+				return root.mura.getAttributes(this.selection[0]);
 			} else if (typeof attributeName == 'object'){
 				this.each(function(el){
 					if(el.setAttribute){
@@ -800,10 +852,10 @@
 
 		data:function(attributeName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			if(typeof value == 'undefined' && typeof attributeName == 'undefined'){
-				return window.mura.getData(this.selection[0]);
+				return root.mura.getData(this.selection[0]);
 			} else if (typeof attributeName == 'object'){
 				this.each(function(el){
 					for(var p in attributeName){
@@ -818,7 +870,7 @@
 				});
 				return this;
 			} else if (this.selection[0] && this.selection[0].getAttribute) {
-				return window.mura.parseString(this.selection[0].getAttribute("data-" + attributeName));
+				return root.mura.parseString(this.selection[0].getAttribute("data-" + attributeName));
 			} else {
 				return undefined;
 			}
@@ -826,10 +878,10 @@
 
 		prop:function(attributeName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			if(typeof value == 'undefined' && typeof attributeName == 'undefined'){
-				return window.mura.getProps(this.selection[0]);
+				return root.mura.getProps(this.selection[0]);
 			} else if (typeof attributeName == 'object'){
 				this.each(function(el){
 					for(var p in attributeName){
@@ -844,7 +896,7 @@
 				});
 				return this;
 			} else {
-				return window.mura.parseString(this.selection[0].getAttribute(attributeName));
+				return root.mura.parseString(this.selection[0].getAttribute(attributeName));
 			}
 		},
 
@@ -893,4 +945,4 @@
 		}
 	});
 
-})(window);
+})(this);
