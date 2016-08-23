@@ -43,9 +43,21 @@
 	For clarity, if you create a modified version of Mura CMS, you are not obligated to grant this special exception for your
 	modified version; it is your choice whether to do so, or to make such modified version available under the GNU General Public License
 	version 2 without this exception.  You may, if you choose, apply this exception to your own modified versions of Mura CMS. */
-
-;(function(window){
-	window.mura.DOMSelection=window.mura.Core.extend({
+;(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define([root,'Mura'], factory);
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        factory(root,require('Mura'));
+    } else {
+        // Browser globals (root is window)
+        factory(root,root.Mura);
+    }
+}(this, function (root,mura) {
+	Mura.DOMSelection=Mura.Core.extend({
 		init:function(selection,origSelector){
 			this.selection=selection;
 			this.origSelector=origSelector;
@@ -68,11 +80,11 @@
 		},
 
 		ajax:function(data){
-			return window.mura.ajax(data);
+			return Mura.ajax(data);
 		},
 
 		select:function(selector){
-			return window.mura(selector);
+			return mura(selector);
 		},
 
 		each:function(fn){
@@ -83,19 +95,26 @@
 		},
 
 		filter:function(fn){
-			return window.mura(this.selection.filter( function(el,idx,array){
+			return mura(this.selection.filter( function(el,idx,array){
 				return fn.call(el,el,idx,array);
 			}));
 		},
 
 		map:function(fn){
-			return window.mura(this.selection.map( function(el,idx,array){
+			return mura(this.selection.map( function(el,idx,array){
 				return fn.call(el,el,idx,array);
 			}));
 		},
 
 		isNumeric:function(val){
 			return isNumeric(this.selection[0]);
+		},
+
+		processMarkup:function(){
+			this.each(function(el){
+				Mura.processMarkup(el);
+			});
+			return this;
 		},
 
 		on:function(eventName,selector,fn){
@@ -133,6 +152,7 @@
 			this.each(function(){
 				if(typeof this.addEventListener == 'function'){
 					var self=this;
+
 					this.addEventListener(
 						eventName,
 						function(event){
@@ -156,6 +176,8 @@
 		hover:function(handlerIn,handlerOut){
 			this.on('mouseover',handlerIn);
 			this.on('mouseout',handlerOut);
+			this.on('touchstart',handlerIn);
+			this.on('touchend',handlerOut);
 			return this;
 		},
 
@@ -171,7 +193,7 @@
 			} else {
 				this.each(function(el){
 					if(typeof el.submit == 'function'){
-						window.mura.submitForm(el);
+						Mura.submitForm(el);
 					}
 				});
 			}
@@ -193,10 +215,13 @@
 						el[eventName]=null;
 					}
 				} else {
-					var elClone = el.cloneNode(true);
-					el.parentNode.replaceChild(elClone, el);
-					array[idx]=elClone;
-
+					if(typeof el.parentElement != 'undefined' && el.parentElement && typeof el.parentElement.replaceChild != 'undefined'){
+						var elClone = el.cloneNode(true);
+						el.parentElement.replaceChild(elClone, el);
+						array[idx]=elClone;
+					} else {
+						console.log("Mura: Can not remove all handlers from element without a parent node")
+					}
 				}
 
 			});
@@ -217,25 +242,25 @@
 			eventDetails=eventDetail || {};
 
 			this.each(function(el){
-				window.mura.trigger(el,eventName,eventDetail);
+				Mura.trigger(el,eventName,eventDetail);
 			});
 			return this;
 		},
 
 		parent:function(){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
-			return window.mura(this.selection[0].parentNode);
+			return mura(this.selection[0].parentNode);
 		},
 
 		children:function(selector){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(this.selection[0].hasChildNodes()){
-				var children=window.mura(this.selection[0].childNodes);
+				var children=mura(this.selection[0].childNodes);
 
 				if(typeof selector == 'string'){
 					var filterFn=function(){return (this.nodeType === 1 || this.nodeType === 11 || this.nodeType === 9) && this.matchesSelector(selector);};
@@ -245,31 +270,47 @@
 
 				return children.filter(filterFn);
 			} else {
-				return window.mura([]);
+				return mura([]);
 			}
 
 		},
 
 		find:function(selector){
-			if(this.selection.length){
+			if(this.selection.length && this.selection[0]){
 				var removeId=false;
 
 				if(this.selection[0].nodeType=='1' || this.selection[0].nodeType=='11'){
 					var result=this.selection[0].querySelectorAll(selector);
 				} else if(this.selection[0].nodeType=='9'){
-					var result=window.document.querySelectorAll(selector);
+					var result=document.querySelectorAll(selector);
 				} else {
 					var result=[];
 				}
-				return window.mura(result);
+				return mura(result);
 			} else {
-				return window.mura([]);
+				return mura([]);
 			}
 		},
 
+        first:function(){
+            if(this.selection.length){
+				return mura(this.selection[0]);
+			} else {
+				return mura([]);
+			}
+        },
+
+        last:function(){
+            if(this.selection.length){
+				return mura(this.selection[this.selection.length-1]);
+			} else {
+				return mura([]);
+			}
+        },
+
 		selector:function() {
 			var pathes = [];
-			var path, node = window.mura(this.selection[0]);
+			var path, node = mura(this.selection[0]);
 
 			while (node.length) {
 				var realNode = node.get(0), name = realNode.localName;
@@ -287,7 +328,7 @@
 
 				    if (sameTagSiblings.length > 1)
 				    {
-				        allSiblings = parent.children();
+				        var allSiblings = parent.children();
 				        var index = allSiblings.index(realNode) +1;
 
 				        if (index > 0) {
@@ -308,12 +349,12 @@
 
 		siblings:function(selector){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			var el=this.selection[0];
 
 			if(el.hasChildNodes()){
-				var silbings=window.mura(this.selection[0].childNodes);
+				var silbings=mura(this.selection[0].childNodes);
 
 				if(typeof selector == 'string'){
 					var filterFn=function(){return (this.nodeType === 1 || this.nodeType === 11 || this.nodeType === 9) && this.matchesSelector(selector);};
@@ -323,7 +364,7 @@
 
 				return silbings.filter(filterFn);
 			} else {
-				return window.mura([]);
+				return mura([]);
 			}
 		},
 
@@ -345,9 +386,9 @@
 		    for( var parent = el ; parent !== null  && parent.matchesSelector && !parent.matchesSelector(selector) ; parent = el.parentElement ){ el = parent; };
 
 		    if(parent){
-		    	 return window.mura(parent)
+		    	 return mura(parent)
 		    } else {
-		    	 return window.mura([]);
+		    	 return mura([]);
 		    }
 
 		},
@@ -355,7 +396,7 @@
 		append:function(el) {
 			this.each(function(){
 				if(typeof el == 'string'){
-					this.insertAdjacentHTML('beforeend', htmlString);
+					this.insertAdjacentHTML('beforeend', el);
 				} else {
 					this.appendChild(el);
 				}
@@ -363,19 +404,73 @@
 			return this;
 		},
 
-		appendMuraObject:function(data) {
-		    var el=createElement('div');
-		    el.setAttribute('class','mura-async-object');
+		appendDisplayObject:function(data) {
+			var self=this;
 
-			for(var a in data){
-				el.setAttribute('data-' + a,data[a]);
-			}
+			return new Promise(function(resolve,reject){
+				self.each(function(){
+					var el=document.createElement('div');
+				    el.setAttribute('class','mura-object');
 
-			this.append(el);
+					for(var a in data){
+						el.setAttribute('data-' + a,data[a]);
+					}
 
-			window.mura.processAsyncObject(this.node);
+					if(typeof data.async == 'undefined'){
+						el.setAttribute('data-async',true);
+					}
 
-			return el;
+					if(typeof data.render == 'undefined'){
+						el.setAttribute('data-render','server');
+					}
+
+					el.setAttribute('data-instanceid',Mura.createUUID());
+
+					mura(this).append(el);
+
+					Mura.processDisplayObject(el).then(resolve,reject);
+
+				});
+			});
+		},
+
+		prependDisplayObject:function(data) {
+			var self=this;
+
+			return new Promise(function(resolve,reject){
+				self.each(function(){
+					var el=document.createElement('div');
+				    el.setAttribute('class','mura-object');
+
+					for(var a in data){
+						el.setAttribute('data-' + a,data[a]);
+					}
+
+					if(typeof data.async == 'undefined'){
+						el.setAttribute('data-async',true);
+					}
+
+					if(typeof data.render == 'undefined'){
+						el.setAttribute('data-render','server');
+					}
+
+					el.setAttribute('data-instanceid',Mura.createUUID());
+
+					mura(this).prepend(el);
+
+					Mura.processDisplayObject(el).then(resolve,reject);
+
+				});
+			});
+		},
+
+		processDisplayObject:function(data) {
+			var self=this;
+			return new Promise(function(resolve,reject){
+				self.each(function(){
+					Mura.processDisplayObject(this).then(resolve,reject);
+				});
+			});
 		},
 
 		prepend:function(el) {
@@ -421,7 +516,7 @@
 
 			this.prepend(el);
 
-			window.mura.processAsyncObject(el);
+			Mura.processAsyncObject(el);
 
 			return el;
 		},
@@ -520,7 +615,7 @@
 			}
 
 			this.each(function(el){
-				window.mura.evalScripts(el);
+				Mura.evalScripts(el);
 			});
 
 			return this;
@@ -531,7 +626,7 @@
 			if(typeof htmlString != 'undefined'){
 				this.each(function(el){
 					el.innerHTML=htmlString;
-					window.mura.evalScripts(el);
+					Mura.evalScripts(el);
 				});
 				return this;
 			} else {
@@ -544,20 +639,20 @@
 
 		css:function(ruleName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
-			if(typeof rulename == 'undefined' && typeof value == 'undefined'){
+			if(typeof ruleName == 'undefined' && typeof value == 'undefined'){
 				try{
-					return window.getComputedStyle(this.selection[0]);
+					return getComputedStyle(this.selection[0]);
 				} catch(e){
 					return {};
 				}
-			} else if (typeof attributeName == 'object'){
+			} else if (typeof ruleName == 'object'){
 				this.each(function(el){
 					try{
-						for(var p in attributeName){
-							el.style[p]=attributeName[p];
+						for(var p in ruleName){
+							el.style[p]=ruleName[p];
 						}
 					} catch(e){}
 				});
@@ -570,7 +665,7 @@
 				return this;
 			} else{
 				try{
-					return window.getComputedStyle(this.selection[0])[ruleName];
+					return getComputedStyle(this.selection[0])[ruleName];
 				} catch(e){}
 			}
 		},
@@ -593,9 +688,26 @@
 			return this.selection[0].matchesSelector && this.selection[0].matchesSelector(selector);
 		},
 
+		hasAttr:function(attributeName){
+			if(!this.selection.length){
+				return false;
+			}
+
+			return typeof this.selection[0].hasAttribute == 'function' && this.selection[0].hasAttribute(attributeName);
+		},
+
+		hasData:function(attributeName){
+			if(!this.selection.length){
+				return false;
+			}
+
+			return this.hasAttr('data-' + attributeName);
+		},
+
+
 		offsetParent:function(){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			var el=this.selection[0];
 			return el.offsetParent || el;
@@ -603,12 +715,12 @@
 
 		outerHeight:function(withMargin){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			if(typeof withMargin == 'undefined'){
 				function outerHeight(el) {
 				  var height = el.offsetHeight;
-				  var style = window.getComputedStyle(el);
+				  var style = getComputedStyle(el);
 
 				  height += parseInt(style.marginTop) + parseInt(style.marginBottom);
 				  return height;
@@ -622,7 +734,7 @@
 
 		height:function(height) {
 		 	if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(typeof width != 'undefined'){
@@ -636,8 +748,8 @@
 			var el=this.selection[0];
 			//var type=el.constructor.name.toLowerCase();
 
-			if(el === window){
-				return window.innerHeight
+			if(el === root){
+				return innerHeight
 			} else if(el === document){
 				var body = document.body;
 		    	var html = document.documentElement;
@@ -645,7 +757,7 @@
 		                       html.clientHeight, html.scrollHeight, html.offsetHeight )
 			}
 
-			var styles = window.getComputedStyle(el);
+			var styles = getComputedStyle(el);
 			var margin = parseFloat(styles['marginTop']) + parseFloat(styles['marginBottom']);
 
 			return Math.ceil(el.offsetHeight + margin);
@@ -653,7 +765,7 @@
 
 		width:function(width) {
 		  	if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(typeof width != 'undefined'){
@@ -667,8 +779,8 @@
 			var el=this.selection[0];
 			//var type=el.constructor.name.toLowerCase();
 
-			if(el === window){
-				return window.innerWidth
+			if(el === root){
+				return innerWidth
 			} else if(el === document){
 				var body = document.body;
 		    	var html = document.documentElement;
@@ -676,12 +788,12 @@
 		                       html.clientWidth, html.scrolWidth, html.offsetWidth )
 			}
 
-		  	return window.getComputedStyle(el).width;
+		  	return getComputedStyle(el).width;
 		},
 
 		offset:function(){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			var el=this.selection[0];
 			var rect = el.getBoundingClientRect()
@@ -698,18 +810,18 @@
 
 		offset:function(attributeName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			var box = this.selection[0].getBoundingClientRect();
 			return {
-			  top: box.top  + ( window.pageYOffset || document.scrollTop )  - ( document.clientTop  || 0 ),
-			  left: box.left + ( window.pageXOffset || document.scrollLeft ) - ( document.clientLeft || 0 )
+			  top: box.top  + ( pageYOffset || document.scrollTop )  - ( document.clientTop  || 0 ),
+			  left: box.left + ( pageXOffset || document.scrollLeft ) - ( document.clientLeft || 0 )
 			};
 		},
 
 		removeAttr:function(attributeName){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			this.each(function(el){
@@ -724,11 +836,11 @@
 
 		changeElementType:function(type){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			this.each(function(el){
-				window.mura.changeElementType(el,type)
+				Mura.changeElementType(el,type)
 
 			});
 			return this;
@@ -737,7 +849,7 @@
 
         val:function(value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(typeof value != 'undefined'){
@@ -756,7 +868,7 @@
 				return this;
 
 			} else {
-				if(this.selection[0].hasOwnProperty('value')){
+				if(Object.prototype.hasOwnProperty.call(this.selection[0],'value') || typeof this.selection[0].value != 'undefined'){
 					return this.selection[0].value;
 				} else {
 					return '';
@@ -766,11 +878,11 @@
 
 		attr:function(attributeName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 
 			if(typeof value == 'undefined' && typeof attributeName == 'undefined'){
-				return window.mura.getAttributes(this.selection[0]);
+				return Mura.getAttributes(this.selection[0]);
 			} else if (typeof attributeName == 'object'){
 				this.each(function(el){
 					if(el.setAttribute){
@@ -800,10 +912,10 @@
 
 		data:function(attributeName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			if(typeof value == 'undefined' && typeof attributeName == 'undefined'){
-				return window.mura.getData(this.selection[0]);
+				return Mura.getData(this.selection[0]);
 			} else if (typeof attributeName == 'object'){
 				this.each(function(el){
 					for(var p in attributeName){
@@ -818,7 +930,7 @@
 				});
 				return this;
 			} else if (this.selection[0] && this.selection[0].getAttribute) {
-				return window.mura.parseString(this.selection[0].getAttribute("data-" + attributeName));
+				return Mura.parseString(this.selection[0].getAttribute("data-" + attributeName));
 			} else {
 				return undefined;
 			}
@@ -826,10 +938,10 @@
 
 		prop:function(attributeName,value){
 			if(!this.selection.length){
-				return;
+				return this;
 			}
 			if(typeof value == 'undefined' && typeof attributeName == 'undefined'){
-				return window.mura.getProps(this.selection[0]);
+				return Mura.getProps(this.selection[0]);
 			} else if (typeof attributeName == 'object'){
 				this.each(function(el){
 					for(var p in attributeName){
@@ -844,7 +956,7 @@
 				});
 				return this;
 			} else {
-				return window.mura.parseString(this.selection[0].getAttribute(attributeName));
+				return Mura.parseString(this.selection[0].getAttribute(attributeName));
 			}
 		},
 
@@ -893,4 +1005,4 @@
 		}
 	});
 
-})(window);
+}));

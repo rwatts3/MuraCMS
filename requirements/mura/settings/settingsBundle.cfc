@@ -46,7 +46,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 --->
 <cfcomponent extends="mura.cfobject" output="false">
 
-	<cffunction name="init" access="public" returntype="any" output="false">
+	<cffunction name="init" output="false">
 		<cfset variables.configBean	= application.configBean />
 		<cfset variables.dsn		= variables.configBean.getDatasource() />
 
@@ -174,7 +174,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	</cffunction>
 
 
-	<cffunction name="renameFiles" returntype="void">
+	<cffunction name="renameFiles">
 		<cfargument name="siteID" type="string" default="" required="true">
 		<cfargument name="keyFactory" type="any" required="true">
 		<cfargument name="dsn" type="string" default="#variables.configBean.getDatasource()#" required="true">
@@ -201,7 +201,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		</cfloop>
 	</cffunction>
 
-	<cffunction name="bundleFiles" returntype="void">
+	<cffunction name="bundleFiles">
 		<cfargument name="siteID" type="string" default="" required="true">
 		<cfargument name="includeVersionHistory" type="boolean" default="true" required="true">
 		<cfargument name="includeTrash" type="boolean" default="true" required="true">
@@ -218,6 +218,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfset var rstfiles=getValue("rstfiles")>
 		<cfset var rscheck="">
 		<cfset var started=false>
+		<cfset var site=getBean('settingsManager').getSite(arguments.siteid)>
 
 		<!---<cfset var moduleIDSQLlist="" />--->
 		<cfset var i="" />
@@ -240,7 +241,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 			<cfquery name="rsInActivefiles">
 				select fileID,fileExt from tfiles
 				where siteid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#filePoolID#"/>
-				and moduleid in ('00000000000000000000000000000000000','00000000000000000000000000000000003'<cfif len(arguments.moduleID)>,<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.moduleID#" list="true"></cfif><cfif arguments.includeUsers>,'00000000000000000000000000000000008'</cfif>)
+				and moduleid in ('00000000000000000000000000000000000','00000000000000000000000000000000003','00000000000000000000000000000000099'<cfif len(arguments.moduleID)>,<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.moduleID#" list="true"></cfif><cfif arguments.includeUsers>,'00000000000000000000000000000000008'</cfif>)
 				and (
 
 					<cfif not arguments.includeVersionHistory and rstfiles.recordcount>
@@ -260,6 +261,9 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 				<cfif isDate(arguments.sinceDate)>
 					and created >= <cfqueryparam cfsqltype="cf_sql_timestamp" value="#arguments.sinceDate#">
+				</cfif>
+				<cfif len(site.getPlaceholderImgID())>
+					or fileid= <cfqueryparam cfsqltype="cf_sql_varchar" value="#site.getPlaceholderImgID()#">
 				</cfif>
 			</cfquery>
 
@@ -323,7 +327,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="bundlePartialFiles" returntype="void">
+	<cffunction name="bundlePartialFiles">
 		<cfargument name="siteID" type="string" default="" required="true">
 		<cfargument name="moduleID" type="string" default="" required="true">
 		<cfargument name="sinceDate" type="any" default="">
@@ -479,7 +483,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfreturn fileArray />
 	</cffunction>
 
-	<cffunction name="unpackPartialFile" returntype="string">
+	<cffunction name="unpackPartialFile">
 		<cfargument name="siteID" type="string" default="" required="true">
 		<cfargument name="fileid" type="string" required="true">
 		<cfargument name="contentid" type="string" required="true">
@@ -515,7 +519,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfreturn newFileID />
 	</cffunction>
 
-	<cffunction name="unpackPartialAssets" returntype="string">
+	<cffunction name="unpackPartialAssets">
 		<cfargument name="siteID" type="string" default="" required="true">
 
 		<cfset var zipPath = getBundle() & "assetfiles.zip" />
@@ -526,7 +530,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfset variables.zipTool.Extract(zipFilePath="#zipPath#",extractPath=destDir, overwriteFiles=true)>
 	</cffunction>
 
-	<cffunction name="unpackFiles" returntype="string">
+	<cffunction name="unpackFiles">
 		<cfargument name="siteID" type="string" default="" required="true">
 		<cfargument name="keyFactory" type="any" required="true">
 		<cfargument name="dsn" type="string" default="#variables.configBean.getDatasource()#" required="true">
@@ -639,7 +643,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		</cfif>
 	</cffunction>
 
-	<cffunction name="bundle" returntype="any">
+	<cffunction name="bundle">
 		<cfargument name="siteID" type="string" default="" required="true">
 		<cfargument name="includeVersionHistory" type="boolean" default="true" required="true">
 		<cfargument name="includeTrash" type="boolean" default="true" required="true">
@@ -765,6 +769,8 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		</cfif>
 
 		<cfif len(arguments.siteID)>
+			<!---
+			--- Switching to using content path instead ---
 			<cfif len(arguments.parentid)>
 				<cfquery name="rsparentids">
 					select distinct contentid,
@@ -787,6 +793,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					order by depth, orderno
 				</cfquery>
 			</cfif>
+			--->
 
 			<cfquery name="rstcontent">
 				select tcontent.* from tcontent
@@ -802,7 +809,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 					and tcontent.active = 1
 				<cfelseif len(arguments.parentid)>
-					and contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+					and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+					<cfif arguments.doChildrenOnly>
+					and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+					</cfif>
 					and tcontent.active = 1
 				</cfif>
 			</cfquery>
@@ -824,7 +834,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 						and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 						and tcontent.active = 1
 					<cfelseif len(arguments.parentid)>
-						and contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+						and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+						<cfif arguments.doChildrenOnly>
+						and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+						</cfif>
 						and tcontent.active = 1
 					</cfif>
 				)
@@ -855,7 +868,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 						and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 						and tcontent.active = 1
 					<cfelseif len(arguments.parentid)>
-						and contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+						and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+						<cfif arguments.doChildrenOnly>
+						and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+						</cfif>
 						and tcontent.active = 1
 					</cfif>
 				)
@@ -869,11 +885,15 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 				<cfif not arguments.includeTrash>
 				and contentID in (
 					select distinct contentID from tcontent
+					where siteid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.siteID#"/>
 					<cfif len(arguments.changesetID)>
-						where changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
+						and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 						and tcontent.active = 1
 					<cfelseif len(arguments.parentid)>
-						where contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+						and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+						<cfif arguments.doChildrenOnly>
+						and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+						</cfif>
 						and tcontent.active = 1
 					</cfif>
 				)
@@ -955,7 +975,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 							and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 							and tcontent.active = 1
 						<cfelseif len(arguments.parentid)>
-							and contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+							and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+							<cfif arguments.doChildrenOnly>
+							and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+							</cfif>
 							and tcontent.active = 1
 						</cfif>
 					)
@@ -970,11 +993,15 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					and categoryID in (select categoryID from tcontentcategories)
 					and contentID in (
 						select distinct contentID from tcontent
+						where siteid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.siteID#"/>
 						<cfif len(arguments.changesetID)>
-							where changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
+							and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 							and tcontent.active = 1
 						<cfelseif len(arguments.parentid)>
-							where contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+							and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+							<cfif arguments.doChildrenOnly>
+							and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+							</cfif>
 							and tcontent.active = 1
 						</cfif>
 						)
@@ -1224,7 +1251,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 							and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 							and tcontent.active = 1
 						<cfelseif len(arguments.parentid)>
-							and contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+							and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+							<cfif arguments.doChildrenOnly>
+							and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+							</cfif>
 							and tcontent.active = 1
 						</cfif>
 					)
@@ -1239,11 +1269,15 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					<cfif not arguments.includeTrash>
 					and contentID in (
 						select distinct contentID from tcontent
+						where siteid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.siteID#"/>
 						<cfif len(arguments.changesetID)>
-							where changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
+							and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 							and tcontent.active = 1
 						<cfelseif len(arguments.parentid)>
-							where contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+							and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+							<cfif arguments.doChildrenOnly>
+							and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+							</cfif>
 							and tcontent.active = 1
 						</cfif>
 					)
@@ -1257,7 +1291,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 			<!--- tfiles --->
 			<cfquery name="rstfiles">
 				select * from tfiles where siteid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.siteID#"/>
-				and moduleid in ('00000000000000000000000000000000000','00000000000000000000000000000000003'<cfif len(arguments.moduleID)>,<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.moduleID#" list="true"></cfif><cfif arguments.includeUsers>,'00000000000000000000000000000000008'</cfif><cfif arguments.includeFormData>,'00000000000000000000000000000000004'</cfif>)
+				and moduleid in ('00000000000000000000000000000000000','00000000000000000000000000000000003','00000000000000000000000000000000099'<cfif len(arguments.moduleID)>,<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.moduleID#" list="true"></cfif><cfif arguments.includeUsers>,'00000000000000000000000000000000008'</cfif><cfif arguments.includeFormData>,'00000000000000000000000000000000004'</cfif>)
 				<cfif not arguments.includeVersionHistory or len(arguments.changesetid) or len(arguments.parentid)>
 				and
 				(
@@ -1271,7 +1305,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 							and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 							and tcontent.active = 1
 						<cfelseif len(arguments.parentid)>
-							and contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+							and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+							<cfif arguments.doChildrenOnly>
+							and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+							</cfif>
 							and tcontent.active = 1
 						</cfif>
 					)
@@ -1286,7 +1323,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 								and tcontent.changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 								and tcontent.active = 1
 							<cfelseif len(arguments.parentid)>
-								and contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+								and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+								<cfif arguments.doChildrenOnly>
+								and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+								</cfif>
 								and tcontent.active = 1
 							</cfif>
 							)
@@ -1347,11 +1387,15 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					<cfif not arguments.includeTrash or len(arguments.changesetid) or len(arguments.parentid)>
 					and contentID in (
 						select distinct contentID from tcontent
+						where siteid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.siteID#"/>
 						<cfif len(arguments.changesetid)>
-							where changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
+							and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 							and tcontent.active = 1
 						<cfelseif len(arguments.parentid)>
-							where contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+							and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+							<cfif arguments.doChildrenOnly>
+							and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+							</cfif>
 							and tcontent.active = 1
 						</cfif>
 					)
@@ -1368,11 +1412,15 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					<cfif not arguments.includeTrash or len(arguments.changesetid) or len(arguments.parentid)>
 					and contentID in (
 						select distinct contentID from tcontent
+						where siteid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.siteID#"/>
 						<cfif len(arguments.changesetid)>
-							where changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
+							and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 							and tcontent.active = 1
 						<cfelseif len(arguments.parentid)>
-							where contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+							and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+							<cfif arguments.doChildrenOnly>
+							and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+							</cfif>
 							and tcontent.active = 1
 						</cfif>
 						)
@@ -1505,7 +1553,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 							and tcontent.changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 							and tcontent.active = 1
 						<cfelseif len(arguments.parentid)>
-							and tcontent.contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+							and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+							<cfif arguments.doChildrenOnly>
+							and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+							</cfif>
 							and tcontent.active = 1
 						</cfif>
 				</cfquery>
@@ -1602,7 +1653,8 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					largeImageWidth,largeImageHeight,
 					smallImageWidth,smallImageHeight,
 					mediumImageWidth,mediumImageHeight,
-					columnCount,columnNames,primaryColumn,baseID,customtaggroups
+					columnCount,columnNames,primaryColumn,baseID,customtaggroups,
+					placeholderImgID,placeholderImgExt
 				    from tsettings where siteid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.siteID#"/>
 				</cfquery>
 
@@ -1776,7 +1828,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 				<cfif len(arguments.changesetID)>
 					and changesetid = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.changesetID#">
 				<cfelseif len(arguments.parentid)>
-					and contentid IN (<cfqueryparam cfsqltype="cf_sql_varchar" value="#valueList(rsparentids.contentid)#" LIST="true">)
+					and tcontent.path like <cfqueryparam cfsqltype="cf_sql_varchar" value="%#arguments.parentid#%">
+					<cfif arguments.doChildrenOnly>
+					and tcontent.contentid <> <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.parentid#">
+					</cfif>
 				</cfif>
 				order by depth,orderno
 			</cfquery>
@@ -1851,11 +1906,11 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="getBundle" returntype="string">
+	<cffunction name="getBundle">
 		<cfreturn variables.Bundle />
 	</cffunction>
 
-	<cffunction name="cleanUp" returntype="string">
+	<cffunction name="cleanUp">
 		<cfif not len( getBundle() ) or not directoryExists( getBundle() )>
 			<cfreturn>
 		</cfif>
@@ -1867,7 +1922,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		</cftry>
 	</cffunction>
 
-	<cffunction name="getValue" returntype="any" output="false">
+	<cffunction name="getValue" output="false">
 		<cfargument name="name" type="string" required="true">
 		<cfargument name="default">
 
@@ -1882,7 +1937,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		</cfif>
 	</cffunction>
 
-	<cffunction name="fixAssetPath" returntype="void">
+	<cffunction name="fixAssetPath">
 		<cfargument name="siteID" type="string" default="" required="true">
 
 		<cfset var content = "" />
@@ -1903,7 +1958,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cffile action="write" output="#extenddata#" file="#variables.backupDir#wddx_rstclassextenddata.xml"  charset="utf-8">
 	</cffunction>
 
-	<cffunction name="setValue" returntype="void">
+	<cffunction name="setValue">
 		<cfargument name="name" type="string" required="true">
 		<cfargument name="value" type="any" required="true">
 		<cfset var temp="">
@@ -1916,20 +1971,23 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfset variables.data["#name#"]=arguments.value>
 		<cfwddx action="cfml2wddx" input="#arguments.value#" output="temp">
 
-		<!--- replace lower, non-printable ascii chars --->
+		<!--- replace lower, non-printable ascii chars (except for line breaks and tabs) --->
 		<cfloop from="1" to="31" index="i">
-			<cfset temp = replace(temp, chr(i), "", "all")>
+			<cfif not listFind('9,10,13',i)>
+				<cfset temp = replace(temp, chr(i), "", "all")>
+			</cfif>
 		</cfloop>
+
 
 		<cffile action="write" output="#temp#" file="#variables.backupDir#wddx_#arguments.name#.xml"  charset="utf-8">
 	</cffunction>
 
-	<cffunction name="valueExists" access="public" output="false">
+	<cffunction name="valueExists" output="false">
 		<cfargument name="valueKey">
 		<cfreturn structKeyExists(variables.data,arguments.valueKey) />
 	</cffunction>
 
-	<cffunction name="getAllValues" access="public" output="false">
+	<cffunction name="getAllValues" output="false">
 		<cfreturn variables.data />
 	</cffunction>
 </cfcomponent>

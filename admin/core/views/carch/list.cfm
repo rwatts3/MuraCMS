@@ -50,7 +50,7 @@
 <cfset poweruser=$.currentUser().isSuperUser() or $.currentUser().isAdminUser()>
 <cfinclude template="js.cfm">
 <cfswitch expression="#rc.moduleID#">
-	<cfcase value="00000000000000000000000000000000003,00000000000000000000000000000000004,00000000000000000000000000000000099">
+	<cfcase value="LEGACY">
 		<cfset rc.perm=application.permUtility.getPerm(rc.moduleid,rc.siteid)>
 
 		<cfparam name="rc.sortBy" default="menutitle">
@@ -80,6 +80,7 @@
 		</cfswitch>
 
 		<cfoutput>
+			<div class="mura-header">
 			<cfif rc.moduleid eq '00000000000000000000000000000000004'>
 				<h1>#application.rbFactory.getKeyValue(session.rb,'sitemanager.formsmanager')#</h1>
 			<cfelseif rc.moduleid eq '00000000000000000000000000000000099'>
@@ -87,11 +88,18 @@
 			<cfelse>
 				<h1>#application.rbFactory.getKeyValue(session.rb,'sitemanager.componentmanager')#</h1>
 			</cfif>
+
 			<cfinclude template="dsp_secondary_menu.cfm">
+
+			</div> <!-- /.mura-header -->
 		</cfoutput>
 
-		<div class="row-fluid">
-			<div id="main" class="span9">
+			<div class="block block-constrain">
+					<div class="block block-bordered">
+					  <div class="block-content">
+							<div id="main">
+
+				<cfif rc.rstop.recordcount>
 				<table class="mura-table-grid">
 					<cfoutput>
 						<thead>
@@ -118,7 +126,6 @@
 					</cfoutput>
 
 					<tbody>
-						<cfif rc.rstop.recordcount>
 							<cfoutput query="rc.rsTop" maxrows="#rc.nextn.recordsperPage#" startrow="#rc.startrow#">
 								<cfsilent>
 									<cfset isLockedBySomeoneElse=$.siteConfig('hasLockableNodes') and len(rc.rsTop.lockid) and rc.rsTop.lockid neq session.mura.userid>
@@ -153,12 +160,12 @@
 				  					<!--- Display Start/Stop --->
 									<td>
 										<cfif rc.rstop.Display and (rc.rstop.Display eq 1 and rc.rstop.approved)>
-											<i class="icon-ok" title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.yes')#"></i>
+															<i class="mi-check" title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.yes')#"></i>
 											<span>#application.rbFactory.getKeyValue(session.rb,'sitemanager.yes')#</span>
 										<cfelseif(rc.rstop.Display eq 2 and rc.rstop.approved)>
 											#LSDateFormat(rc.rstop.displaystart,"short")# - #LSDateFormat(rc.rstop.displaystop,"short")#
 										<cfelse>
-											<i class="icon-ban-circle" title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.no')#"></i>
+															<i class="mi-ban" title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.no')#"></i>
 											<span>#application.rbFactory.getKeyValue(session.rb,'sitemanager.no')#</span>
 										</cfif>
 									</td>
@@ -177,60 +184,60 @@
 											<cfif verdict neq 'none'>
 												<li class="edit<cfif isLockedBySomeoneElse> disabled</cfif>">
 													<a title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.content.edit')#" class="draftprompt" data-siteid="#rc.siteid#" data-contentid="#rc.rstop.contentid#" data-contenthistid="#rc.rstop.contenthistid#" href="./?muraAction=cArch.edit&contenthistid=#rc.rstop.ContentHistID#&contentid=#rc.rstop.ContentID#&type=#rc.rstop.type#&parentid=#rc.rstop.parentID#&topid=#esapiEncode('url',rc.topid)#&siteid=#esapiEncode('url',rc.siteid)#&moduleid=#rc.moduleid#">
-														<i class="icon-pencil"></i>
+																		<i class="mi-pencil"></i>
 													</a>
 												</li>
 												<cfif rc.rstop.type eq 'Variation'>
-													<li class="preview"><a title="#application.rbFactory.getKeyValue(session.rb,"sitemanager.view")#" href="##" onclick="return preview('#rc.rstop.remoteurl#');"><i class="icon-globe"></i></a></li>
+																	<li class="preview"><a title="#application.rbFactory.getKeyValue(session.rb,"sitemanager.view")#" href="##" onclick="return preview('#rc.rstop.remoteurl#');"><i class="mi-globe"></i></a></li>
 												</cfif>
 												<li class="version-history">
 													<a title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.content.versionhistory')#" href="./?muraAction=cArch.hist&contentid=#rc.rstop.ContentID#&type=#rc.rstop.type#&parentid=#rc.rstop.parentID#&topid=#esapiEncode('url',rc.topid)#&siteid=#esapiEncode('url',rc.siteid)#&moduleid=#rc.moduleid#">
-														<i class="icon-book"></i>
+																		<i class="mi-history"></i>
 													</a>
 												</li>
 												<cfif rc.moduleid eq '00000000000000000000000000000000004'>
 													<li class="manage-data">
 														<a title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.content.managedata')#" href="./?muraAction=cArch.datamanager&contentid=#rc.rstop.ContentID#&siteid=#esapiEncode('url',rc.siteid)#&moduleid=#rc.moduleid#&contenthistid=#rc.rstop.ContentHistID#&topid=#esapiEncode('url',rc.topid)#&parentid=#esapiEncode('url',rc.parentid)#&type=Form">
-															<i class="icon-wrench"></i>
+																			<i class="mi-wrench"></i>
 														</a>
 													</li>
 												</cfif>
 												<cfif listFind(session.mura.memberships,'Admin;#application.settingsManager.getSite(rc.siteid).getPrivateUserPoolID()#;0') or listFind(session.mura.memberships,'S2')>
 													<li class="permissions">
 														<a title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.content.permissions')#" href="./?muraAction=cPerm.main&contentid=#rc.rstop.ContentID#&type=#rc.rstop.type#&parentid=#rc.rstop.parentID#&topid=#esapiEncode('url',rc.topid)#&siteid=#esapiEncode('url',rc.siteid)#&moduleid=#rc.moduleid#&startrow=#rc.startrow#">
-															<i class="icon-group"></i>
+																			<i class="mi-group"></i>
 														</a>
 													</li>
 												</cfif>
 											<cfelse>
 												<li class="edit disabled">
 													<a>
-														<i class="icon-pencil"></i>
+																		<i class="mi-pencil"></i>
 													</a>
 												</li>
 												<li class="version-history disabled">
-													<i class="icon-book"></i>
+																	<i class="mi-history"></i>
 												</li>
 												<cfif rc.moduleid eq '00000000000000000000000000000000004'>
 													<li class="manage-dataOff disabled">
-														<i class="icon-wrench"></i>
+																		<i class="mi-wrench"></i>
 													</li>
 												</cfif>
 												<li class="permissions disabled">
 													<a>
-														<i class="icon-group"></i>
+																		<i class="mi-group"></i>
 													</a>
 												</li>
 											</cfif>
 											<cfif (((rc.locking neq 'all') or (rc.parentid eq '#rc.topid#' and rc.locking eq 'none')) and (verdict eq 'editor') and not rc.rsTop.isLocked eq 1) and not isLockedBySomeoneElse>
 												<li class="delete">
 													<a title="#application.rbFactory.getKeyValue(session.rb,'sitemanager.content.delete')#" href="./?muraAction=cArch.update&contentid=#rc.rstop.ContentID#&type=#rc.rstop.type#&action=deleteall&topid=#esapiEncode('url',rc.topid)#&siteid=#esapiEncode('url',rc.siteid)#&moduleid=#rc.moduleid#&parentid=#esapiEncode('url',rc.parentid)##rc.$.renderCSRFTokens(context=rc.rstop.contentid & 'deleteall',format='url')#" onClick="return confirmDialog('#esapiEncode('javascript',application.rbFactory.getKeyValue(session.rb,'sitemanager.content.deletecontentconfirm'))#',this.href)">
-														<i class="icon-remove-sign"></i>
+																		<i class="mi-trash"></i>
 													</a>
 												</li>
 											<cfelseif rc.locking neq 'all'>
 												<li class="delete disabled">
-													<i class="icon-remove-sign"></i>
+																	<i class="mi-trash"></i>
 												</li>
 											</cfif>
 										</ul>
@@ -238,17 +245,15 @@
 									<!--- /Actions --->
 								</tr>
 							</cfoutput>
-						<cfelse>
-							<tr>
-								<td colspan="7" class="noResults">
-									<cfoutput>
-										#application.rbFactory.getKeyValue(session.rb,'sitemanager.noitemsinsection')#
-									</cfoutput>
-								</td>
-							</tr>
-						</cfif>
 					</tbody>
 				</table>
+				<cfelse>
+					<div class="help-block-empty">
+						<cfoutput>
+							#application.rbFactory.getKeyValue(session.rb,'sitemanager.noitemsinsection')#
+						</cfoutput>
+					</div>
+				</cfif>
 
 				<cfif rc.nextn.numberofpages gt 1>
 					<cfoutput>
@@ -260,13 +265,12 @@
 							<p class="clearfix search-showing">
 								#application.rbFactory.getResourceBundle(session.rb).messageFormat(application.rbFactory.getKeyValue(session.rb,"sitemanager.paginationmeta"),args)#
 							</p>
-							<div class="pagination">
-								<ul>
+								<ul class="pagination">
 									<cfif rc.nextN.currentpagenumber gt 1>
 
 										<li>
 											<a href="./?muraAction=cArch.list&siteid=#esapiEncode('url',rc.siteid)#&moduleid=#rc.moduleid#&topid=#esapiEncode('url',rc.topid)#&startrow=#rc.nextN.previous#&sortBy=#rc.sortBy#&sortDirection=#rc.sortDirection#&searchString=#rc.searchString#">
-												&laquo;&nbsp;#application.rbFactory.getKeyValue(session.rb,'sitemanager.prev')#
+												<i class="mi-angle-right"></i>
 											</a>
 										</li>
 									 </cfif>
@@ -284,11 +288,10 @@
 									</cfloop>
 						<cfif rc.nextN.currentpagenumber lt rc.nextN.NumberOfPages>
 							<li>
-								<a href="./?muraAction=cArch.list&siteid=#esapiEncode('url',rc.siteid)#&moduleid=#rc.moduleid#&topid=#esapiEncode('url',rc.topid)#&startrow=#rc.nextN.next#&sortBy=#rc.sortBy#&sortDirection=#rc.sortDirection#&searchString=#rc.searchString#">#application.rbFactory.getKeyValue(session.rb,'sitemanager.next')#&nbsp;&raquo;</a>
+								<a href="./?muraAction=cArch.list&siteid=#esapiEncode('url',rc.siteid)#&moduleid=#rc.moduleid#&topid=#esapiEncode('url',rc.topid)#&startrow=#rc.nextN.next#&sortBy=#rc.sortBy#&sortDirection=#rc.sortDirection#&searchString=#rc.searchString#"><i class="mi-angle-right"></i></a>
 							</li>
 						</cfif>
 						</ul>
-						</div>
 					</div>
 				</cfoutput>
 
@@ -296,7 +299,7 @@
 		</div>
 
 		<cfoutput>
-			<div class="sidebar span3">
+			<div class="sidebar">
 				<h2>#application.rbFactory.getKeyValue(session.rb,"sitemanager.filters")#</h2>
 				<form class="form-inline" novalidate="novalidate" id="filterByTitle" action="index.cfm" method="get">
 					  <input type="hidden" name="siteid" value="#esapiEncode('html_attr',rc.siteid)#" />
@@ -308,36 +311,35 @@
 					  <input type="hidden" name="muraAction" value="cArch.list" />
 
 					<div id="filters" class="module well">
-					<h3>#application.rbFactory.getKeyValue(session.rb,"sitemanager.keywords")#</h3>
+					<label>#application.rbFactory.getKeyValue(session.rb,"sitemanager.keywords")#</label>
 					 <input type="text" name="searchString" id="searchString" value="#esapiEncode('html_attr',rc.searchString)#" class="text" size="20">
 					</div>
 
-					<div class="module well" id="mura-filter-tags">
-						<h3>#application.rbFactory.getKeyValue(session.rb,"sitemanager.tags")#</h3>
-
+					<div class="module mura-control-group mura-filter-tags">
+						<label>#application.rbFactory.getKeyValue(session.rb,"sitemanager.tags")#</label>
+						<input type="text" name="tags">
 						<div id="tags" class="tagSelector">
 							<cfloop list="#$.event('tags')#" index="i">
 								<span class="tag">
-								#esapiEncode('html',i)# <a><i class="icon-remove-sign"></i></a>
+												#esapiEncode('html',i)# <a><i class="mi-times-circle"></i></a>
 								<input name="tags" type="hidden" value="#esapiEncode('html_attr',i)#">
 								</span>
 							</cfloop>
-							<input type="text" name="tags">
 						</div>
 					</div>
 
 					<cfif len($.siteConfig('customTagGroups'))>
 						<cfloop list="#$.siteConfig('customTagGroups')#" index="g" delimiters="^,">
-							<div class="module well" id="mura-filter-tags">
-								<h3>#g# #application.rbFactory.getKeyValue(session.rb,"sitemanager.tags")#</h3>
+							<div class="module mura-control-group mura-filter-tags">
+								<label>#g# #application.rbFactory.getKeyValue(session.rb,"sitemanager.tags")#</label>
+								<input type="text" name="#g#tags">
 								<div id="#g#tags" class="tagSelector">
 									<cfloop list="#$.event('#g#tags')#" index="i">
 										<span class="tag">
-										#esapiEncode('html',i)# <a><i class="icon-remove-sign"></i></a>
+														#esapiEncode('html',i)# <a><i class="mi-times-circle"></i></a>
 										<input name="#g#tags" type="hidden" value="#esapiEncode('html_attr',i)#">
 										</span>
 									</cfloop>
-									<input type="text" name="#g#tags">
 								</div>
 							</div>
 						</cfloop>
@@ -345,15 +347,18 @@
 
 					<cfif $.getBean("categoryManager").getCategoryCount($.event("siteID"))>
 						<div class="module well" id="mura-list-tree">
-							<h3>#application.rbFactory.getKeyValue(session.rb,"sitemanager.categories")#</h3>
+							<label>#application.rbFactory.getKeyValue(session.rb,"sitemanager.categories")#</label>
 							<cf_dsp_categories_nest siteID="#$.event('siteID')#" parentID="" nestLevel="0" categoryid="#$.event('categoryid')#">
 						</div>
 					</cfif>
 
-					<input type="submit" class="btn" name="filterList" value="#application.rbFactory.getKeyValue(session.rb,"sitemanager.filter")#"/>
-					<cfif len($.event('categoryID') & $.event('tags') & $.event('searchString'))>
-					<input type="button" class="btn" name="removeFilter" id="removeFilter" value="#application.rbFactory.getKeyValue(session.rb,"sitemanager.removefilter")#" onclick=""/>
-					</cfif>
+					<div class="sidebar-buttons">
+						<input type="submit" class="btn" name="filterList" value="#application.rbFactory.getKeyValue(session.rb,"sitemanager.filter")#"/>
+						<cfif len($.event('categoryID') & $.event('tags') & $.event('searchString'))>
+						<input type="button" class="btn" name="removeFilter" id="removeFilter" value="#application.rbFactory.getKeyValue(session.rb,"sitemanager.removefilter")#" onclick=""/>
+						</cfif>
+					</div><!-- /.sidebar-buttons -->
+
 				 </form>
 
 				 <script>
@@ -406,13 +411,19 @@
 					 );
 
 				</script>
-			</div>
+							</div> <!-- /.sidebar -->
+
 		</cfoutput>
+
+						<div class="clearfix"></div>
+					</div> <!-- /.block-content -->
+				</div> <!-- /.block-bordered -->
+			</div> <!-- /.block-constrain -->
 
 		<cfinclude template="draftpromptjs.cfm">
 	</cfcase>
 
-	<cfcase value="00000000000000000000000000000000000">
+	<cfcase value="00000000000000000000000000000000099,00000000000000000000000000000000003,00000000000000000000000000000000004,00000000000000000000000000000000000">
 		<cfsilent>
 			<cfset crumbdata=application.contentManager.getCrumbList(rc.topid,rc.siteid)>
 
@@ -436,6 +447,7 @@
 			<cfparam name="rc.type" default="" />
 			<cfparam name="rc.page" default="1" />
 			<cfparam name="rc.subtype" default="" />
+			<cfparam name="session.moduleid" default="#rc.moduleid#" />
 
 			<cfif len($.siteConfig('customTagGroups'))>
 				<cfloop list="#$.siteConfig('customTagGroups')#" index="g" delimiters="^,">
@@ -582,13 +594,15 @@
 
 					<cfif rc.sorted>
 						<cfset application.pluginManager.announceEvent("onAfterContentSort",pluginEvent)>
+					</cfif>
+					<cfif isDefined('current')>
 						<cfset rc.$.getBean('contentManager').purgeContentCache(contentBean=current)>
 						<cfset application.settingsManager.getSite(rc.siteid).purgeCache()>
 					</cfif>
 				</cflock>
 			</cfif>
 
-			<cfif not len(crumbdata[1].siteid)>
+			<cfif not arrayLen(crumbdata) or not len(crumbdata[1].siteid)>
 				<cflocation url="./?muraAction=cArch.list&siteid=#esapiEncode('url',rc.siteid)#&moduleid=00000000000000000000000000000000000&topid=00000000000000000000000000000000001" addtoken="false"/>
 			</cfif>
 		</cfsilent>
@@ -596,9 +610,10 @@
 		<cfoutput>
 			<script>
 				siteID='#session.siteID#';
-				<cfif session.copySiteID eq rc.siteID>
+				<cfif session.copySiteID eq rc.siteID and isdefined('session.copyModuleID')>
 				siteManager.copyContentID = '#esapiEncode("javascript",session.copyContentID)#';
 				siteManager.copySiteID = '#esapiEncode("javascript",session.copySiteID)#';
+				siteManager.copyModuleID = '#esapiEncode("javascript",session.copyModuleID)#';
 				siteManager.copyAll = '#esapiEncode("javascript",session.copyAll)#';
 				<cfelse>
 				siteManager.copyContentID = '';
@@ -607,39 +622,105 @@
 				</cfif>
 			</script>
 
-			<h1>#application.rbFactory.getKeyValue(session.rb,"sitemanager.sitemanager")#</h1>
+		 	<div class="mura-header">
+				<h1>#application.rbFactory.getKeyValue(session.rb,'layout.contentmanager')#</h1>
+			</div> <!--- /.mura-header --->
 
-			<form class="form-inline" novalidate="novalidate" id="siteSearch" name="siteSearch" method="get">
-				<div class="input-append">
-					<input name="keywords" value="#esapiEncode('html_attr',session.keywords)#" type="text" class="text" />
-					<button type="button" class="btn" onclick="submitForm(document.forms.siteSearch);">
-						<i class="icon-search"></i>
-					</button>
-				</div>
-				<input type="hidden" name="muraAction" value="cArch.list">
-				<input type="hidden" name="activetab" value="1">
-				<input type="hidden" name="siteid" value="#esapiEncode('html_attr',rc.siteid)#">
-				<input type="hidden" name="moduleid" value="#rc.moduleid#">
-			</form>
-
-			<div class="tabbable">
-				<ul id="viewTabs" class="nav nav-tabs tabs initActiveTab">
-					<li><a href="##tabArchitectural" onclick="return false;">#application.rbFactory.getKeyValue(session.rb,"sitemanager.view.architectural")#</a></li>
-					<li><a href="##tabFlat" onclick="return false;">#application.rbFactory.getKeyValue(session.rb,"sitemanager.view.flat")#</a></li>
+			<div class="block block-constrain">
+				<ul id="viewTabs" class="mura-tabs nav-tabs" data-toggle="tabs">
+					<li><a href="##tabArchitectural" onclick="return false;"><span>#application.rbFactory.getKeyValue(session.rb,"sitemanager.view.architectural")#</span></a></li>
+					<li><a href="##tabFlat" onclick="return false;"><span>#application.rbFactory.getKeyValue(session.rb,"sitemanager.view.flat")#</span></a></li>
 				</ul>
-				<div class="tab-content">
-					<div id="tabArchitectural" class="tab-pane fade">
-						<div id="gridContainer">
+				<div class="block-content tab-content">
+
+					<div id="tabArchitectural" class="tab-pane">
+						<div class="block block-bordered">
+							<!-- block header -->
+						  <div class="block-header">
+									<h3 class="block-title pull-left">#application.rbFactory.getKeyValue(session.rb,"sitemanager.view.architectural")#</h3>
+						  </div>
+						  <!-- /block header -->
+						  <div class="block-content">
+
+			  		<cfif application.permUtility.getModulePerm("00000000000000000000000000000000003",session.siteid)
+			  		OR application.settingsManager.getSite(session.siteid).getDataCollection() and  application.permUtility.getModulePerm("00000000000000000000000000000000004",session.siteid)
+			  		OR application.configBean.getValue(property='variations',defaultValue=false) and application.permUtility.getModulePerm("00000000000000000000000000000000099",session.siteid)>
+
+							  <div id="arch-mod" class="mura-input-set">
+
+  									  <a class="site-manager-mod btn<cfif rc.moduleid eq "00000000000000000000000000000000000"> active</cfif>" data-moduleid="00000000000000000000000000000000000" title="#esapiEncode('html_attr',application.rbFactory.getKeyValue(session.rb,"layout.sitetree"))#" href="##" onclick="return siteManager.loadSiteManagerInTab(function(){siteManager.loadSiteManager('#esapiEncode('javascript',rc.siteid)#','','00000000000000000000000000000000000','','','Page',1)});">
+  										  <i class="mi-sitemap"></i> #application.rbFactory.getKeyValue(session.rb,"layout.sitetree")#
+  									  </a>
+
+
+  								  <cfif application.permUtility.getModulePerm("00000000000000000000000000000000003",session.siteid)>
+
+  									  <a class="site-manager-mod btn<cfif rc.moduleid eq "00000000000000000000000000000000003"> active</cfif>" data-moduleid="00000000000000000000000000000000003" title="#esapiEncode('html_attr',application.rbFactory.getKeyValue(session.rb,"layout.components"))#" href="##" onclick="return siteManager.loadSiteManagerInTab(function(){siteManager.loadSiteManager('#esapiEncode('javascript',rc.siteid)#','','00000000000000000000000000000000003','','','Component',1)});">
+  										  <i class="mi-align-justify"></i> #application.rbFactory.getKeyValue(session.rb,"layout.components")#
+  									  </a>
+
+  								  </cfif>
+  								  <cfif application.settingsManager.getSite(session.siteid).getDataCollection() and  application.permUtility.getModulePerm("00000000000000000000000000000000004",session.siteid)>
+
+  									  <a class="site-manager-mod btn<cfif rc.moduleid eq "00000000000000000000000000000000004"> active</cfif>" data-moduleid="00000000000000000000000000000000004" title="#esapiEncode('html_attr',application.rbFactory.getKeyValue(session.rb,"layout.forms"))#" href="##" onclick="return siteManager.loadSiteManagerInTab(function(){siteManager.loadSiteManager('#esapiEncode('javascript',rc.siteid)#','','00000000000000000000000000000000004','','','Form',1)});">
+  										<i class="mi-toggle-on"></i> #application.rbFactory.getKeyValue(session.rb,"layout.forms")#
+  									  </a>
+
+  								  </cfif>
+  								  <cfif application.configBean.getValue(property='variations',defaultValue=false) and application.permUtility.getModulePerm("00000000000000000000000000000000099",session.siteid)>
+
+  									  <a class="site-manager-mod btn<cfif rc.moduleid eq "00000000000000000000000000000000099"> active</cfif>" data-moduleid="00000000000000000000000000000000099" title="#esapiEncode('html_attr',application.rbFactory.getKeyValue(session.rb,"layout.variations"))#" href="##" onclick="return siteManager.loadSiteManagerInTab(function(){siteManager.loadSiteManager('#esapiEncode('javascript',rc.siteid)#','','00000000000000000000000000000000099','','','Variation',1)});">
+  										  <i class="mi-cloud"></i> #application.rbFactory.getKeyValue(session.rb,"layout.variations")#
+  									  </a>
+
+  								  </cfif>
+  							  </div>
+				  		</cfif>
+
+								<script>
+									$(function(){
+										$("##arch-mod  a").click(function(){
+											// persist content nav selection
+											var navSelection = jQuery(this).attr('data-moduleid');
+
+											$(".site-manager-mod").removeClass('active');
+											$('a[data-moduleid=' + navSelection +']').removeClass('active');
+											$("##arch-mod  a.active").removeClass('active');
+											$('a[data-moduleid=' + navSelection +']').addClass('active');
+											if(navSelection=='00000000000000000000000000000000000'){
+												$('##gridContainer').addClass('site-tree');
+											} else {
+												$('##gridContainer').removeClass('site-tree');
+											}
+										});
+									});
+								</script>
+
+			  		<!--- site manager architectural view container --->
+						<div id="gridContainer"<cfif rc.moduleid eq "00000000000000000000000000000000000"> class="site-tree"</cfif>>
 
 						</div>
 					</div>
-					<div id="tabFlat" class="tab-pane fade">
+						</div>
+					</div>
+					<div id="tabFlat" class="tab-pane">
+						<div class="block block-bordered">
+							<!-- block header -->
+						  <div class="block-header">
+								<h3 class="block-title">#application.rbFactory.getKeyValue(session.rb,"sitemanager.view.flat")#</h3>
+						  </div>
+						  <!-- /block header -->
+						  <div class="block-content">
+						  	<!--- site manager flat view container --->
 						<div id="flatViewContainer">
 
 						</div>
 					</div>
 				</div>
 			</div>
+
+				</div> <!--- /.block-content.tab-content --->
+			</div> <!--- /.block-constrain --->
 
 			<script type="text/javascript">
 				var archViewLoaded=false;
@@ -650,7 +731,8 @@
 				function initFlatViewArgs(){
 					return {
 						siteid:'#esapiEncode('javascript',session.siteID)#',
-						moduleid:'#esapiEncode('javascript',session.flatViewArgs["#session.siteID#"].moduleid)#',
+						moduleid:'#esapiEncode('javascript',$.event("moduleid"))#',
+						topid:'#esapiEncode('javascript',session["#$.event("moduleid")#"].topid)#',
 						sortby:'#esapiEncode('javascript',session.flatViewArgs["#session.siteID#"].sortby)#',
 						sortdirection:'#esapiEncode('javascript',session.flatViewArgs["#session.siteID#"].sortdirection)#',
 						page:'#esapiEncode('javascript',session.flatViewArgs["#session.siteID#"].page)#',
@@ -705,9 +787,13 @@
 					}
 				}
 
-
 				jQuery(document).ready(function(){
-					initSiteManagerTabContent(#rc.activeTab#);
+					<cfif isdefined('url.moduleid') and not isdefined('url.activetab')>
+						initSiteManagerTabContent(0);
+					<cfelse>
+						initSiteManagerTabContent(#rc.activeTab#);
+					</cfif>
+
 				});
 			</script>
 		</cfoutput>

@@ -46,7 +46,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 --->
 <cfcomponent extends="mura.cfobject" output="false">
 
-	<cffunction name="update" returntype="void" output="false">
+	<cffunction name="update" output="false">
 		<cfargument name="find" type="string" default="" required="true">
 		<cfargument name="replace" type="string"  default="" required="true">
 		<cfargument name="datasource" type="string"  default="#application.configBean.getDatasource()#" required="true">
@@ -79,7 +79,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		</cfif>
 	</cffunction>
 
-	<cffunction name="getToWork" returntype="any" output="false">
+	<cffunction name="getToWork" output="false">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="any" default="" required="true">
@@ -132,16 +132,23 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 			</cfloop>
 		</cfif>
 
-
 		<!--- BEGIN BUNDLEABLE CUSTOM OBJECTS --->
 		<cfif structKeyExists(arguments, "bundle")>
 			<cfset var bundleablebeans=arguments.Bundle.getValue("bundleablebeans",'')>
 			<cfif len(bundleablebeans)>
 				<cfset var bb="">
-
+				<cfset var bbList="">
 				<cfloop list="#bundleablebeans#" index="bb">
-					<cfif getServiceFactory().containsBean(bb)>
-						<cfset getBean(bb).fromBundle(bundle=arguments.bundle,keyFactory=arguments.keyFactory,siteid=arguments.toSiteID)>
+					<cfif getServiceFactory().containsBean(bb) and not listFindNoCase(bbList,bb)>
+						<cfset local.beanClass=getBean(beanName=bb)>
+						<cfif arguments.contentMode eq 'All' and local.beanClass.hasProperty('siteid')>
+							<cfquery>
+								delete from #local.beanClass.getTable()#
+								where siteid=<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.tositeID#" />
+							</cfquery>
+						</cfif>
+						<cfset local.beanClass.fromBundle(bundle=arguments.bundle,keyFactory=arguments.keyFactory,siteid=arguments.toSiteID)>
+						<cfset bbList=listAppend(bbList,bb)>
 					</cfif>
 				</cfloop>
 			</cfif>
@@ -260,6 +267,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 						primaryColumn=<cfqueryparam cfsqltype="cf_sql_integer" value="#rssite.primaryColumn#">,
 						</cfif>
 
+						<cfif isdefined("rssite.placeholderImgID")>
+						placeholderImgID=<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.keyFactory.get(rssite.placeholderImgID)#">,
+						</cfif>
+
 						theme=<cfqueryparam cfsqltype="cf_sql_varchar" value="#rssite.theme#">,
 						displayPoolID=<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.toSiteID#">,
 
@@ -325,7 +336,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfreturn arguments.errors>
 	</cffunction>
 
-	<cffunction name="getToWorkPartial" returntype="any" output="false">
+	<cffunction name="getToWorkPartial" output="false">
 		<cfargument name="siteID" type="string" default="" required="true">
 		<cfargument name="parentID" type="string" default="">
 		<cfargument name="Bundle" type="any" required="false">
@@ -515,10 +526,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					<cfqueryparam cfsqltype="cf_sql_VARCHAR" value="#contentBean.getContentID()#">,
 					<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rsContentObjects.Name neq '',de('no'),de('yes'))#" value="#rsContentObjects.Name#">,
 					<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rsContentObjects.Object neq '',de('no'),de('yes'))#" value="#rsContentObjects.Object#">,
-					<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rsContentObjects.ObjectID neq '',de('no'),de('yes'))#" value="#rsContentObjects.ObjectID#">,
+					<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rsContentObjects.ObjectID neq '',de('no'),de('yes'))#" value="#arguments.keyFactory(rsContentObjects.ObjectID)#">,
 					<cfqueryparam cfsqltype="cf_sql_INTEGER" null="no" value="#iif(isNumeric(rsContentObjects.OrderNo),de(rsContentObjects.OrderNo),de(0))#">,
 					<cfqueryparam cfsqltype="cf_sql_VARCHAR" value="#arguments.SiteID#">,
-					<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rsContentObjects.params neq '',de('no'),de('yes'))#" value="#rsContentObjects.params#">
+					<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rsContentObjects.params neq '',de('no'),de('yes'))#" value="#translateObjectParams(rsContentObjects.params,arguments.keyFactory)#">
 					)
 				</cfquery>
 				<cfcatch></cfcatch>
@@ -530,10 +541,11 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 				<cfset var bundleablebeans=arguments.Bundle.getValue("bundleablebeans",'')>
 				<cfif len(bundleablebeans)>
 					<cfset var bb="">
-
+					<cfset var bbList="">
 					<cfloop list="#bundleablebeans#" index="bb">
-						<cfif getServiceFactory().containsBean(bb)>
+						<cfif getServiceFactory().containsBean(bb) and not listFindNoCase(bbList,bb)>
 							<cfset getBean(bb).fromBundle(bundle=arguments.bundle,keyFactory=arguments.keyFactory,siteid=arguments.siteid)>
+							<cfset bbList=listAppend(bbList,bb)>
 						</cfif>
 					</cfloop>
 				</cfif>
@@ -545,7 +557,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfreturn arguments.errors>
 	</cffunction>
 
-	<cffunction name="getToWorkSite" returntype="void" output="false">
+	<cffunction name="getToWorkSite" output="false">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="any" default="" required="true">
@@ -745,7 +757,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					</cfif>
 					<cfif isdefined("rstContent.objectParams")>
 						,
-						<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rstContent.objectParams neq '',de('no'),de('yes'))#" value="#rstContent.objectParams#">
+						<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rstContent.objectParams neq '',de('no'),de('yes'))#" value="#translateObjectParams(rstContent.objectParams,keys)#">
 					</cfif>
 					)
 				</cfquery>
@@ -806,7 +818,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 					</cfif>
 					<cfqueryparam cfsqltype="cf_sql_INTEGER" null="no" value="#iif(isNumeric(rstContentObjects.OrderNo),de(rstContentObjects.OrderNo),de(0))#">,
 					<cfqueryparam cfsqltype="cf_sql_VARCHAR" value="#arguments.toSiteID#">,
-					<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rstContentObjects.params neq '',de('no'),de('yes'))#" value="#rstContentObjects.params#">
+					<cfqueryparam cfsqltype="cf_sql_VARCHAR" null="#iif(rstContentObjects.params neq '',de('no'),de('yes'))#" value="#translateObjectParams(rstContentObjects.params,keys)#">
 					)
 				</cfquery>
 			</cfloop>
@@ -1413,7 +1425,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 			</cfloop>
 	</cffunction>
 
-	<cffunction name="getToWorkFiles" returntype="void" output="false">
+	<cffunction name="getToWorkFiles" output="false">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="any" default="" required="true">
@@ -1572,7 +1584,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="getToWorkTrash" returntype="void" output="false">
+	<cffunction name="getToWorkTrash" output="false">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="string" default="" required="true">
@@ -1672,7 +1684,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="getToWorkSyncMeta" returntype="void" output="false">
+	<cffunction name="getToWorkSyncMeta" output="false">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="string" default="" required="true">
@@ -1796,7 +1808,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="getToWorkFormData" returntype="void" output="false">
+	<cffunction name="getToWorkFormData" output="false">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="any" default="" required="true">
@@ -1867,7 +1879,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="getToWorkMailingLists" returntype="void" output="false">
+	<cffunction name="getToWorkMailingLists" output="false">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="any" default="" required="true">
@@ -1964,7 +1976,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="getToWorkUsers" returntype="void" output="false">
+	<cffunction name="getToWorkUsers" output="false">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="toDSN" type="string" default="" required="true">
 		<cfargument name="keyFactory" type="any" required="true">
@@ -2397,7 +2409,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	</cffunction>
 
 	<!---
-	<cffunction name="getToWorkAdvertising" returntype="void" output="false">
+	<cffunction name="getToWorkAdvertising" output="false">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="any" default="" required="true">
@@ -2823,7 +2835,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	</cffunction>
 	--->
 
-	<cffunction name="getToWorkClassExtensions" returntype="void">
+	<cffunction name="getToWorkClassExtensions">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="string" default="" required="true">
@@ -3365,7 +3377,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		</cfif>
 	</cffunction>
 
-	<cffunction name="getToWorkClassExtensionsUsers" returntype="void">
+	<cffunction name="getToWorkClassExtensionsUsers">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="string" default="" required="true">
@@ -3455,7 +3467,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="getToWorkPlugins" returntype="void">
+	<cffunction name="getToWorkPlugins">
 		<cfargument name="fromSiteID" type="string" default="" required="true">
 		<cfargument name="toSiteID" type="string" default="" required="true">
 		<cfargument name="fromDSN" type="string" default="" required="true">
@@ -3745,7 +3757,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 	</cffunction>
 
-	<cffunction name="publish" returntype="void">
+	<cffunction name="publish">
 		<cfargument name="siteid" required="yes" default="">
 		<cfargument name="pushMode" required="yes" default="">
 
@@ -3839,7 +3851,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfset application.pluginManager.announceEvent("onAfterSiteDeploy",pluginEvent)>
 	</cffunction>
 
-	<cffunction name="copy" returntype="void" output="no">
+	<cffunction name="copy" output="no">
 		<cfargument name="fromsiteid" required="yes" default="">
 		<cfargument name="tositeid" required="yes" default="">
 		<cfargument name="fromDSN" required="yes" default="#application.configBean.getDatasource()#">
@@ -4013,6 +4025,25 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	<cfloop list="#arguments.list#" index="i">
 		<cfset newList=listAppend(newList,arguments.keyFactory.get(i))>
 	</cfloop>
+	</cffunction>
+
+	<cffunction name="translateObjectParams" output="false">
+		<cfargument name="params">
+		<cfargument name="keyFactory">
+
+		<cfif isJson(arguments.params)>
+			<cfset arguments.params=deserializeJSON(arguments.params)>
+
+			<cfloop collection="#arguments.params#" item="local.key">
+				<cfif isSimpleValue(arguments.params['#local.key#']) and isValid('uuid',arguments.params['#local.key#'])>
+					<cfset arguments.params['#local.key#']=arguments.keyFactory.get(arguments.params['#local.key#'])>
+				</cfif>
+			</cfloop>
+
+			<cfset arguments.params=serializeJSON(arguments.params)>
+		</cfif>
+
+		<cfreturn arguments.params>
 	</cffunction>
 
 </cfcomponent>

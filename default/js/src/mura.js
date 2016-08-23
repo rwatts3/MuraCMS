@@ -44,16 +44,29 @@
 	modified version; it is your choice whether to do so, or to make such modified version available under the GNU General Public License
 	version 2 without this exception.  You may, if you choose, apply this exception to your own modified versions of Mura CMS. */
 
-;(function(window){
+;(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define(['Mura'], factory);
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        root.Mura=factory(root);
+    } else {
+        // Browser globals (root is window)
+        root.Mura=factory(root);
+    }
+}(this, function (root) {
 
 	function login(username,password,siteid){
-		siteid=siteid || window.mura.siteid;
+		siteid=siteid || root.Mura.siteid;
 
 		return new Promise(function(resolve,reject) {
-			window.mura.ajax({
+			root.Mura.ajax({
 					async:true,
 					type:'post',
-					url:window.mura.apiEndpoint,
+					url:root.Mura.apiEndpoint,
 					data:{
 						siteid:siteid,
 						username:username,
@@ -70,13 +83,13 @@
 
 
 	function logout(siteid){
-		siteid=siteid || window.mura.siteid;
+		siteid=siteid || root.Mura.siteid;
 
 		return new Promise(function(resolve,reject) {
-			window.mura.ajax({
+			root.Mura.ajax({
 					async:true,
 					type:'post',
-					url:window.mura.apiEndpoint,
+					url:root.Mura.apiEndpoint,
 					data:{
 						siteid:siteid,
 						method:'logout'
@@ -108,7 +121,7 @@
 		var query = [];
 		params = params || {};
 		params.filename= params.filename || '';
-		params.siteid= params.siteid || window.mura.siteid;
+		params.siteid= params.siteid || root.Mura.siteid;
 
 	    for (var key in params) {
 	    	if(key != 'entityname' && key != 'filename' && key != 'siteid' && key != 'method'){
@@ -117,13 +130,13 @@
 	    }
 
 		return new Promise(function(resolve,reject) {
-			window.mura.ajax({
+			root.Mura.ajax({
 					async:true,
 					type:'get',
-					url:window.mura.apiEndpoint + params.siteid + '/content/_path/' + filename + '?' + query.join('&'),
+					url:root.Mura.apiEndpoint + params.siteid + '/content/_path/' + filename + '?' + query.join('&'),
 					success:function(resp){
 						if(typeof resolve == 'function'){
-							var item=new window.mura.Entity();
+							var item=new root.Mura.Entity();
 							item.set(resp.data);
 							resolve(item);
 						}
@@ -135,30 +148,39 @@
 	function getEntity(entityname,siteid){
 		if(typeof entityname == 'string'){
 			var properties={entityname:entityname};
-			properties.siteid = siteid || window.mura.siteid;
+			properties.siteid = siteid || root.Mura.siteid;
 		} else {
 			properties=entityname;
 			properties.entityname=properties.entityname || 'content';
-			properties.siteid=properties.siteid || window.mura.siteid;
+			properties.siteid=properties.siteid || root.Mura.siteid;
 		}
-		return new window.mura.Entity(properties);
+
+		if(root.Mura.entities[properties.entityname]){
+			return new root.Mura.entities[properties.entityname](properties);
+		} else {
+			return new root.Mura.Entity(properties);
+		}
+	}
+
+	function getFeed(entityname){
+		return new root.Mura.Feed(Mura.siteid,entityname);
 	}
 
 	function findQuery(params){
 
 		params=params || {};
 		params.entityname=params.entityname || 'content';
-		params.siteid=params.siteid || mura.siteid;
+		params.siteid=params.siteid || Mura.siteid;
 		params.method=params.method || 'findQuery';
 
 		return new Promise(function(resolve,reject) {
 
-			window.mura.ajax({
+			root.Mura.ajax({
 					type:'get',
-					url:window.mura.apiEndpoint,
+					url:root.Mura.apiEndpoint,
 					data:params,
 					success:function(resp){
-							var collection=new window.mura.EntityCollection(resp.data)
+							var collection=new root.Mura.EntityCollection(resp.data)
 
 							if(typeof resolve == 'function'){
 								resolve(collection);
@@ -199,7 +221,8 @@
 	    var head = document.getElementsByTagName("head")[0] || document.documentElement,
 	    script = document.createElement("script");
 	    script.type = "text/javascript";
-	    script.appendChild( document.createTextNode( data ) );
+	    //script.appendChild( document.createTextNode( data ) );
+		script.text=data;
 	    head.insertBefore( script, head.firstChild );
 	    head.removeChild( script );
 
@@ -213,14 +236,14 @@
 
 		// Try to copy attributes across
 		for (var i = 0, a = el.attributes, n = a.length; i < n; ++i)
-		oldEl.setAttribute(a[i].name, a[i].value);
+		el.setAttribute(a[i].name, a[i].value);
 
 		// Try to move children across
 		while (el.hasChildNodes())
 		newEl.appendChild(el.firstChild);
 
 		// Replace the old element with the new one
-		el.parentNode.replaceChild(newEl, oldEl);
+		el.parentNode.replaceChild(newEl, el);
 
 		// Return the new element, for good measure.
 		return newEl;
@@ -273,6 +296,42 @@
 
 	}
 
+	function isXDomainRequest(url){
+		function getHostName(url) {
+		    var match = url.match(/:\/\/([0-9]?\.)?(.[^/:]+)/i);
+		    if (match != null && match.length > 2 && typeof match[2] === 'string' && match[2].length > 0) {
+		    	return match[2];
+		    } else {
+		        return null;
+		    }
+		}
+
+
+		function getDomain(url) {
+		    var hostName = getHostName(url);
+		    var domain = hostName;
+
+		    if (hostName != null) {
+		        var parts = hostName.split('.').reverse();
+
+		        if (parts != null && parts.length > 1) {
+		            domain = parts[1] + '.' + parts[0];
+
+		            if (hostName.toLowerCase().indexOf('.co.uk') != -1 && parts.length > 2) {
+		              domain = parts[2] + '.' + domain;
+		            }
+		        }
+		    }
+
+		    return domain;
+		}
+
+		var requestDomain=getDomain(url);
+
+		return (requestDomain && requestDomain != location.host);
+
+	}
+
 	function ajax(params){
 
 		//params=params || {};
@@ -291,6 +350,16 @@
 
 		if(!('data' in params)){
 			params.data={};
+		}
+
+		if(!(typeof FormData != 'undefined' && params.data instanceof FormData)){
+			params.data=Mura.deepExtend({},params.data);
+
+			for(var p in params.data){
+				if(typeof params.data[p] == 'object'){
+					params.data[p]=JSON.stringify(params.data[p]);
+				}
+			}
 		}
 
 		if(!('xhrFields' in params)){
@@ -313,34 +382,34 @@
 
 		if(params.crossDomain){
 			if (!("withCredentials" in request)
-				&& typeof XDomainRequest != "undefined") {
+				&& typeof XDomainRequest != "undefined" && isXDomainRequest(params.url)) {
 			    // Check if the XMLHttpRequest object has a "withCredentials" property.
 			    // "withCredentials" only exists on XMLHTTPRequest2 objects.
 			    // Otherwise, check if XDomainRequest.
 			    // XDomainRequest only exists in IE, and is IE's way of making CORS requests.
-			    request =new XDomainRequest();
-			}
 
-			request.withCredentials=true;
-		}
+				request =new XDomainRequest();
 
-		request.onload = function() {
-		  	//IE9 doesn't appear to return the request status
-     		if(typeof request.status == 'undefined' || (request.status >= 200 && request.status < 400)) {
-
-			    try{
-			    	var data = JSON.parse(request.responseText);
-			    } catch(e){
-			    	var data = request.responseText;
-			    }
-
-			    params.success(data);
-			} else {
-			   	params.error(request);
 			}
 		}
 
-		request.onerror = params.onerror;
+		request.onreadystatechange = function() {
+			if(request.readyState == 4) {
+   	 		  	//IE9 doesn't appear to return the request status
+   	      		if(typeof request.status == 'undefined' || (request.status >= 200 && request.status < 400)) {
+
+					try{
+   	 			    	var data = JSON.parse(request.responseText);
+   	 			    } catch(e){
+   	 			    	var data = request.responseText;
+   	 			    }
+
+   	 			    params.success(data,request);
+   	 			} else {
+   	 			   	params.error(request);
+   	 			}
+			}
+		}
 
 		if(params.type.toLowerCase()=='post'){
 			request.open(params.type.toUpperCase(), params.url, params.async);
@@ -356,19 +425,21 @@
 			}
 
 			//if(params.data.constructor.name == 'FormData'){
-			if(params.data instanceof FormData){
+			if(typeof FormData != 'undefined' && params.data instanceof FormData){
 				request.send(params.data);
 			} else {
 				request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 				var query = [];
 
 			    for (var key in params.data) {
-			        query.push(encodeURIComponent(key) + '=' + encodeURIComponent(params.data[key]));
+			        query.push($escape(key) + '=' + $escape(params.data[key]));
 			    }
 
 			    query=query.join('&');
 
-				request.send(query);
+				setTimeout(function () {
+				   request.send(query);
+				 }, 0);
 			}
 		} else {
 			if(params.url.indexOf('?') == -1){
@@ -378,7 +449,7 @@
 			var query = [];
 
 		    for (var key in params.data) {
-		        query.push(encodeURIComponent(key) + '=' + encodeURIComponent(params.data[key]));
+		        query.push($escape(key) + '=' + $escape(params.data[key]));
 		    }
 
 		    query=query.join('&');
@@ -395,9 +466,25 @@
 				request.setRequestHeader(p,params.headers[h]);
 			}
 
-			request.send();
+			setTimeout(function () {
+			   request.send();
+			 }, 0);
 		}
 
+	}
+
+	function generateOauthToken(grant_type,client_id,client_secret){
+		return new Promise(function(resolve,reject) {
+			get(Mura.apiEndpoint.replace('/json/','/rest/') + 'oauth/token?grant_type=' + encodeURIComponent(grant_type) + '&client_id=' + encodeURIComponent(client_id) + '&client_secret=' + encodeURIComponent(client_secret)).then(function(resp){
+				if(resp.data != 'undefined'){
+					resolve(resp.data);
+				} else {
+					if(typeof reject=='function'){
+						reject(resp);
+					}
+				}
+			})
+		});
 	}
 
 	function each(selector,fn){
@@ -406,7 +493,7 @@
 
 	function on(el,eventName,fn){
 		if(eventName=='ready'){
-			mura.ready(fn);
+			Mura.ready(fn);
 		} else {
 			if(typeof el.addEventListener == 'function'){
 				el.addEventListener(
@@ -444,15 +531,21 @@
 
       	var bubbles=eventName == "change" ? false : true;
 
-      	if(eventClass=='Custom'){
-	    	var event = document.createEvent('CustomEvent');
-	    	event.initCustomEvent(eventName, true, true);
-
-	    } else {
+		if(document.createEvent){
 	    	var event = document.createEvent(eventClass);
 	    	event.initEvent(eventName, bubbles, true);
 	    	event.synthetic = true;
-	    }
+			el.dispatchEvent(event);
+
+		} else {
+			try{
+				document.fireEvent("on" + eventName);
+			} catch(e){
+				console.warn("Event failed to fire due to legacy browser: on" + eventName);
+			}
+		}
+
+
   	};
 
 	function off(el,eventName,fn){
@@ -465,10 +558,7 @@
 		} else if(typeof selector== 'string'){
 			var selection=nodeListToArray(document.querySelectorAll(selector));
 		} else {
-			//var classname=selector.constructor.name;
-			//if(classname=='NodeList' || classname=='HTMLCollection'){
-			//if(typeof selector.length != 'undefined'){
-			if(selector instanceof NodeList || selector instanceof HTMLCollection){
+			if((typeof StaticNodeList != 'undefined' && selector instanceof StaticNodeList) || selector instanceof NodeList || selector instanceof HTMLCollection){
 				var selection=nodeListToArray(selector);
 			} else {
 				var selection=[selector];
@@ -497,7 +587,7 @@
 	}
 
 	function select(selector){
-		return new window.mura.DOMSelection(parseSelection(selector),selector);
+		return new root.Mura.DOMSelection(parseSelection(selector),selector);
 	}
 
 	function parseHTML(str) {
@@ -528,6 +618,11 @@
 		return data;
 	}
 
+
+	function isNumeric(val) {
+		return Number(parseFloat(val)) == val;
+	}
+
 	function parseString(val){
 		if(typeof val == 'string'){
 			var lcaseVal=val.toLowerCase();
@@ -537,7 +632,7 @@
 			} else if (lcaseVal=='true'){
 				return true;
 			} else {
-				if(val.length != 35){
+				if(!(typeof val == 'string' && val.length==35) && isNumeric(val)){
 					var numVal=parseFloat(val);
 					if(numVal==0 || !isNaN(1/numVal)){
 						return numVal;
@@ -580,7 +675,12 @@
 	                            s[s.name] = field.options[j].value;
 	                    }
 	                } else if ((field.type != 'checkbox' && field.type != 'radio') || field.checked) {
-	                    s[field.name ] =field.value;
+						if(typeof s[field.name ] == 'undefined'){
+							s[field.name ] =field.value;
+						} else {
+							s[field.name ] = s[field.name ] + ',' + field.value;
+						}
+
 	                }
 	            }
 	        }
@@ -597,7 +697,7 @@
 		      continue;
 
 		    for (var key in arguments[i]) {
-		      if (arguments[i].hasOwnProperty(key))
+		      if (typeof arguments[i].hasOwnProperty != 'undefined' && arguments[i].hasOwnProperty(key))
 		        out[key] = arguments[i][key];
 		    }
 	  	}
@@ -616,7 +716,7 @@
 
 		    for (var key in obj) {
 
-		        if (obj.hasOwnProperty(key)) {
+		        if (typeof arguments[i].hasOwnProperty != 'undefined' && arguments[i].hasOwnProperty(key)) {
 		        	if(Array.isArray(obj[key])){
 		       			out[key]=obj[key].slice(0);
 			        } else if (typeof obj[key] === 'object') {
@@ -657,10 +757,14 @@
 	}
 
 	function $escape(value){
-		return escape(value).replace(
-       	 	new RegExp( "\\+", "g" ),
-        	"%2B"
-        ).replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+		if(typeof encodeURIComponent != 'undefined'){
+			return encodeURIComponent(value)
+		} else {
+			return escape(value).replace(
+	       	 	new RegExp( "\\+", "g" ),
+	        	"%2B"
+	        ).replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+		}
 	}
 
 	function $unescape(value){
@@ -669,11 +773,11 @@
 
 	//deprecated
 	function addLoadEvent(func) {
-		 var oldonload = window.onload;
-		 if (typeof window.onload != 'function') {
-			window.onload = func;
+		 var oldonload = root.onload;
+		 if (typeof root.onload != 'function') {
+			root.onload = func;
 		 } else {
-			window.onload = function() {
+			root.onload = function() {
 			 oldonload();
 			 func();
 			}
@@ -682,7 +786,7 @@
 
 	function noSpam(user,domain) {
 		locationstring = "mailto:" + user + "@" + domain;
-		window.location = locationstring;
+		root.location = locationstring;
 	}
 
 	function createUUID() {
@@ -708,7 +812,7 @@
 	function setHTMLEditor(el) {
 
 		function initEditor(){
-			var instance=window.CKEDITOR.instances[el.getAttribute('id')];
+			var instance=root.CKEDITOR.instances[el.getAttribute('id')];
 			var conf={height:200,width:'70%'};
 
 			if(el.getAttribute('data-editorconfig')){
@@ -720,14 +824,14 @@
 				CKEDITOR.remove(instance);
 			}
 
-			window.CKEDITOR.replace( el.getAttribute('id'),getHTMLEditorConfig(conf),htmlEditorOnComplete);
+			root.CKEDITOR.replace( el.getAttribute('id'),getHTMLEditorConfig(conf),htmlEditorOnComplete);
 		}
 
 		function htmlEditorOnComplete( editorInstance ) {
 			//var instance=jQuery(editorInstance).ckeditorGet();
 			//instance.resetDirty();
 			editorInstance.resetDirty();
-			var totalIntances=window.CKEDITOR.instances;
+			var totalIntances=root.CKEDITOR.instances;
 			//CKFinder.setupCKEditor( instance, { basePath : context + '/requirements/ckfinder/', rememberLastFolder : false } ) ;
 		}
 
@@ -746,7 +850,7 @@
 		}
 
 		loader().loadjs(
-			window.mura.requirementspath + '/ckeditor/ckeditor.js'
+			root.Mura.requirementspath + '/ckeditor/ckeditor.js'
 			,
 			function(){
 				initEditor();
@@ -778,18 +882,18 @@
 
 			if (aux.indexOf('2776') != -1 && location.search.indexOf("display=login") == -1) {
 
-				if(typeof(window.mura.loginURL) != "undefined"){
-					lu=window.mura.loginURL;
-				} else if(typeof(window.mura.loginurl) != "undefined"){
-					lu=window.mura.loginurl;
+				if(typeof(root.Mura.loginURL) != "undefined"){
+					lu=root.Mura.loginURL;
+				} else if(typeof(root.Mura.loginurl) != "undefined"){
+					lu=root.Mura.loginurl;
 				} else{
 					lu="?display=login";
 				}
 
-				if(typeof(window.mura.returnURL) != "undefined"){
-					ru=window.mura.returnURL;
-				} else if(typeof(window.mura.returnurl) != "undefined"){
-					ru=window.mura.returnURL;
+				if(typeof(root.Mura.returnURL) != "undefined"){
+					ru=root.Mura.returnURL;
+				} else if(typeof(root.Mura.returnurl) != "undefined"){
+					ru=root.Mura.returnURL;
 				} else{
 					ru=location.href;
 				}
@@ -797,9 +901,9 @@
 
 				lu = new String(lu);
 				if(lu.indexOf('?') != -1){
-					location.href=lu + "&returnUrl=" + $escape(ru);
+					location.href=lu + "&returnUrl=" + encodeURIComponent(ru);
 				} else {
-					location.href=lu + "?returnUrl=" + $escape(ru);
+					location.href=lu + "?returnUrl=" + encodeURIComponent(ru);
 				}
 			}
 		}
@@ -876,15 +980,15 @@
 
 	function isDate(dtStr,fldName){
 		var daysInMonth = DaysArray(12);
-		var dtArray= dtStr.split(window.mura.dtCh);
+		var dtArray= dtStr.split(root.Mura.dtCh);
 
 		if (dtArray.length != 3){
 			//alert("The date format for the "+fldName+" field should be : short")
 			return false
 		}
-		var strMonth=dtArray[window.mura.dtFormat[0]];
-		var strDay=dtArray[window.mura.dtFormat[1]];
-		var strYear=dtArray[window.mura.dtFormat[2]];
+		var strMonth=dtArray[root.Mura.dtFormat[0]];
+		var strDay=dtArray[root.Mura.dtFormat[1]];
+		var strYear=dtArray[root.Mura.dtFormat[2]];
 
 		/*
 		if(strYear.length == 2){
@@ -911,11 +1015,11 @@
 			//alert("Please enter a valid day  in the "+fldName+" field")
 			return false
 		}
-		if (strYear.length != 4 || year==0 || year<window.mura.minYear || year>window.mura.maxYear){
-			//alert("Please enter a valid 4 digit year between "+window.mura.minYear+" and "+window.mura.maxYear +" in the "+fldName+" field")
+		if (strYear.length != 4 || year==0 || year<root.Mura.minYear || year>root.Mura.maxYear){
+			//alert("Please enter a valid 4 digit year between "+root.Mura.minYear+" and "+root.Mura.maxYear +" in the "+fldName+" field")
 			return false
 		}
-		if (isInteger(stripCharsInBag(dtStr, window.mura.dtCh))==false){
+		if (isInteger(stripCharsInBag(dtStr, root.Mura.dtCh))==false){
 			//alert("Please enter a valid date in the "+fldName+" field")
 			return false
 		}
@@ -933,16 +1037,19 @@
 	}
 
 	function initShadowBox(el){
-	    if(mura(el).find('[data-rel^="shadowbox"],[rel^="shadowbox"]').length){
+	    if(Mura(el).find('[data-rel^="shadowbox"],[rel^="shadowbox"]').length){
+
 	      loader().load(
 	        [
-	          mura.assetpath +'/css/shadowbox.min.css',
-	          mura.assetpath +'/js/external/shadowbox/shadowbox.min.js',
-	          mura.assetpath +'/js/external/shadowbox/shadowbox-jquery.min.js'
+	          	Mura.assetpath +'/css/shadowbox.min.css',
+				Mura.assetpath +'/js/external/shadowbox/shadowbox.js'
 	        ],
 	        function(){
-	            window.Shadowbox.init();
-	        }
+				Mura('#shadowbox_overlay,#shadowbox_container').remove();
+				if(root.Shadowbox){
+					root.Shadowbox.init();
+				}
+			}
 	      );
 	  	}
 	}
@@ -1179,10 +1286,10 @@
 			ajax(
 				{
 					type: 'post',
-					url: window.mura.apiEndpoint + '?method=validate',
+					url: root.Mura.apiEndpoint + '?method=validate',
 					data: {
-							data: $escape(JSON.stringify(data)),
-							validations: $escape(JSON.stringify(validations)),
+							data: encodeURIComponent(JSON.stringify(data)),
+							validations: encodeURIComponent(JSON.stringify(validations)),
 							version: 4
 						},
 					success: function(resp) {
@@ -1236,23 +1343,29 @@
 	}
 
 	function isScrolledIntoView(el) {
-		if(!window || window.innerHeight){
+		if(!root || root.innerHeight){
 			true;
 		}
-	    var elemTop = el.getBoundingClientRect().top;
-	    var elemBottom = el.getBoundingClientRect().bottom;
 
-	    var isVisible = elemTop < window.innerHeight && elemBottom >= 0;
-	    return isVisible;
+		try{
+		    var elemTop = el.getBoundingClientRect().top;
+		    var elemBottom = el.getBoundingClientRect().bottom;
+		} catch(e){
+			return true;
+		}
+
+		var isVisible = elemTop < root.innerHeight && elemBottom >= 0;
+		return isVisible;
+
 	}
 
-	function loader(){return window.mura.ljs;}
+	function loader(){return root.Mura.ljs;}
 
-	var layoutmanagertoolbar='<div class="frontEndToolsModal mura"><i class="icon-pencil"></i>&nbsp;</div>';
+	var layoutmanagertoolbar='<div class="frontEndToolsModal mura"><span class="mura-edit-icon"></span></div>';
 
 	function processMarkup(scope){
 
-		if(!(scope instanceof window.mura.DOMSelection)){
+		if(!(scope instanceof root.Mura.DOMSelection)){
 			scope=select(scope);
 		}
 
@@ -1265,13 +1378,14 @@
 		var processors=[
 
 			function(){
-				find('.mura-object[data-async="true"], .mura-object[data-render="client"], .mura-async-object').each(function(){
-					processObject(this,true);
+				find('.mura-object, .mura-async-object').each(function(){
+					processDisplayObject(this,true);
+
 				});
 			},
 
 			function(){
-				find(".htmlEditor").each(function(){
+				find(".htmlEditor").each(function(el){
 					setHTMLEditor(this);
 				});
 			},
@@ -1280,7 +1394,7 @@
 				if(find(".cffp_applied  .cffp_mm .cffp_kp").length){
 					var fileref=document.createElement('script')
 				        fileref.setAttribute("type","text/javascript")
-				        fileref.setAttribute("src", window.mura.requirementspath + '/cfformprotect/js/cffp.js')
+				        fileref.setAttribute("src", root.Mura.requirementspath + '/cfformprotect/js/cffp.js')
 
 					document.getElementsByTagName("head")[0].appendChild(fileref)
 				}
@@ -1304,18 +1418,21 @@
 								var self=el;
 								var checkForReCaptcha=function()
 									{
-									   if (typeof grecaptcha == 'object' )
+									   if (typeof grecaptcha == 'object' && !self.innerHTML)
 									   {
-									   	//console.log(self)
-									     grecaptcha.render(self.getAttribute('id'), {
+
+									     self.setAttribute(
+											'data-widgetid',
+										 	grecaptcha.render(self.getAttribute('id'), {
 									          'sitekey' : self.getAttribute('data-sitekey'),
 									          'theme' : self.getAttribute('data-theme'),
 									          'type' : self.getAttribute('data-type')
-									        });
+									        })
+										);
 									   }
 									   else
 									   {
-									      window.setTimeout(function(){checkForReCaptcha();},10);
+									      root.setTimeout(function(){checkForReCaptcha();},10);
 									   }
 									}
 
@@ -1355,9 +1472,9 @@
 				}
 
 
-				if(window.muraInlineEditor && window.muraInlineEditor.checkforImageCroppers){
+				if(root.MuraInlineEditor && root.MuraInlineEditor.checkforImageCroppers){
 					find("img").each(function(){
-						 window.muraInlineEditor.checkforImageCroppers(this);
+						 root.MuraInlineEditor.checkforImageCroppers(this);
 					});
 
 				}
@@ -1369,11 +1486,11 @@
 			},
 
 			function(){
-				if(typeof urlparams.muraadminpreview != 'undefined'){
+				if(typeof urlparams.Muraadminpreview != 'undefined'){
 					find("a").each(function() {
 						var h=this.getAttribute('href');
 						if(typeof h =='string' && h.indexOf('muraadminpreview')==-1){
-							h=h + (h.indexOf('?') != -1 ? "&muraadminpreview&mobileformat=" + window.mura.mobileformat : "?muraadminpreview&muraadminpreview&mobileformat=" + window.mura.mobileformat);
+							h=h + (h.indexOf('?') != -1 ? "&muraadminpreview&mobileformat=" + root.Mura.mobileformat : "?muraadminpreview&muraadminpreview&mobileformat=" + root.Mura.mobileformat);
 							this.setAttribute('href',h);
 						}
 					});
@@ -1401,12 +1518,13 @@
 		frm=(frm.node) ? frm.node : frm;
 
 	    if(obj){
-	      obj=(obj.node) ? obj : mura(obj);
+	      obj=(obj.node) ? obj : Mura(obj);
 	    } else {
-	      obj=mura(frm).closest('.mura-async-object');
+	      obj=Mura(frm).closest('.mura-async-object');
 	    }
 
 		if(!obj.length){
+			Mura(frm).trigger('formSubmit',formToObject(frm));
 			frm.submit();
 		}
 
@@ -1414,7 +1532,7 @@
 
 				var data=new FormData(frm);
 				var checkdata=setLowerCaseKeys(formToObject(frm));
-				var keys=deepExtend(setLowerCaseKeys(obj.data()),urlparams,{siteid:window.mura.siteid,contentid:window.mura.contentid,contenthistid:window.mura.contenthistid,nocache:1});
+				var keys=deepExtend(setLowerCaseKeys(obj.data()),urlparams,{siteid:root.Mura.siteid,contentid:root.Mura.contentid,contenthistid:root.Mura.contenthistid,nocache:1});
 
 				for(var k in keys){
 					if(!(k in checkdata)){
@@ -1423,41 +1541,48 @@
 				}
 
 				if('objectparams' in checkdata){
-					data.append('objectparams2', $escape(JSON.stringify(obj.data('objectparams'))));
+					data.append('objectparams2', encodeURIComponent(JSON.stringify(obj.data('objectparams'))));
 				}
 
 				if('nocache' in checkdata){
 					data.append('nocache',1);
 				}
 
+				/*
 				if(data.object=='container' && data.content){
 					delete data.content;
 				}
+				*/
 
 				var postconfig={
-							url:  window.mura.apiEndpoint + '?method=processAsyncObject',
+							url:  root.Mura.apiEndpoint + '?method=processAsyncObject',
 							type: 'POST',
 							data: data,
 							success:function(resp){handleResponse(obj,resp);}
 						}
 
 			} else {
-				var data=deepExtend(setLowerCaseKeys(obj.data()),urlparams,setLowerCaseKeys(formToObject(frm)),{siteid:window.mura.siteid,contentid:window.mura.contentid,contenthistid:window.mura.contenthistid,nocache:1});
+
+				var data=deepExtend(setLowerCaseKeys(obj.data()),urlparams,setLowerCaseKeys(formToObject(frm)),{siteid:root.Mura.siteid,contentid:root.Mura.contentid,contenthistid:root.Mura.contenthistid,nocache:1});
 
 				if(data.object=='container' && data.content){
 					delete data.content;
 				}
 
-				if(!('g-recaptcha-response' in data) && document.querySelectorAll("#g-recaptcha-response").length){
-					data['g-recaptcha-response']=document.getElementById('recaptcha-response').value;
+				if(!('g-recaptcha-response' in data)) {
+					var reCaptchaCheck=Mura(frm).find("#g-recaptcha-response");
+
+					if(reCaptchaCheck.length && typeof reCaptchaCheck.val() != 'undefined'){
+						data['g-recaptcha-response']=eCaptchaCheck.val();
+					}
 				}
 
 				if('objectparams' in data){
-					data['objectparams']= $escape(JSON.stringify(data['objectparams']));
+					data['objectparams']= encodeURIComponent(JSON.stringify(data['objectparams']));
 				}
 
 				var postconfig={
-							url: window.mura.apiEndpoint + '?method=processAsyncObject',
+							url: root.Mura.apiEndpoint + '?method=processAsyncObject',
 							type: 'POST',
 							data: data,
 							success:function(resp){handleResponse(obj,resp);}
@@ -1467,30 +1592,38 @@
 			var self=obj.node;
 			self.prevInnerHTML=self.innerHTML;
 			self.prevData=obj.data();
-			self.innerHTML=window.mura.preloaderMarkup;
+			self.innerHTML=root.Mura.preloaderMarkup;
+
+			Mura(frm).trigger('formSubmit',data);
 
 			ajax(postconfig);
 	}
 
-	function resetAsyncObject(el){
-		var self=mura(el);
+	function firstToUpperCase( str ) {
+	    return str.substr(0, 1).toUpperCase() + str.substr(1);
+	}
 
-		self.removeClass('active');
+	function resetAsyncObject(el){
+		var self=Mura(el);
+
+		self.removeClass('mura-active');
 		self.removeAttr('data-perm');
+		self.removeAttr('draggable');
 
 		if(self.data('object')=='container'){
 			self.find('.mura-object:not([data-object="container"])').html('');
 			self.find('.frontEndToolsModal').remove();
 
 			self.find('.mura-object').each(function(){
-				var self=mura(this);
-				self.removeClass('active');
+				var self=Mura(this);
+				self.removeClass('mura-active');
 				self.removeAttr('data-perm');
 				self.removeAttr('data-inited');
+				self.removeAttr('draggable');
 			});
 
 			self.find('.mura-object[data-object="container"]').each(function(){
-				var self=mura(this);
+				var self=Mura(this);
 				var content=self.children('div.mura-object-content');
 
 				if(content.length){
@@ -1512,11 +1645,11 @@
 	}
 
 	function processAsyncObject(el){
-		obj=mura(el);
+		obj=Mura(el);
 		if(obj.data('async')===null){
 			obj.data('async',true);
 		}
-		return processObject(obj);
+		return processDisplayObject(obj,false,true);
 	}
 
 	function wireUpObject(obj,response){
@@ -1532,7 +1665,7 @@
 
 		}
 
-		obj=(obj.node) ? obj : mura(obj);
+		obj=(obj.node) ? obj : Mura(obj);
 		var self=obj.node;
 
 		if(obj.data('class')){
@@ -1542,7 +1675,7 @@
 				var classes=classes.split(' ');
 			}
 
-			for(var c in classes){
+			for(var c=0;c<classes.length;c++){
 				if(!obj.hasClass(classes[c])){
 					obj.addClass(classes[c]);
 				}
@@ -1568,105 +1701,155 @@
 		if(response){
 			if(typeof response == 'string'){
 				obj.html(trim(response));
-			} else if (typeof response.html =='string' && obj.data('render') != 'client'){
+			} else if (typeof response.html =='string' && response.render!='client'){
 				obj.html(trim(response.html));
 			} else {
 				if(obj.data('object')=='container'){
-					obj.prepend(mura.templates.meta(response));
+					var context=deepExtend(obj.data(),response);
+					context.targetEl=obj.node;
+					obj.prepend(Mura.templates.meta(context));
 				} else {
+                    var context=deepExtend(obj.data(),response);
 					var template=obj.data('clienttemplate') || obj.data('object');
+                    var properNameCheck=firstToUpperCase(template);
 
-					if(typeof mura.templates[template] == 'function'){
-						var context=obj.data();
-						context.html=mura.templates[template](obj.data());
-						obj.html(mura.templates.content(context));
-						obj.prepend(mura.templates.meta(context));
-					} else {
+                    if(typeof Mura.DisplayObject[properNameCheck] != 'undefined'){
+						template=properNameCheck;
+					}
+
+					if(typeof context.async != 'undefined'){
+						obj.data('async',context.async);
+					}
+
+					if(typeof context.render != 'undefined'){
+						obj.data('render',context.render);
+					}
+
+					if(typeof context.rendertemplate != 'undefined'){
+						obj.data('rendertemplate',context.rendertemplate);
+					}
+
+					if(typeof Mura.DisplayObject[template] != 'undefined'){
+						context.html='';
+						obj.html(Mura.templates.content(context));
+						obj.prepend(Mura.templates.meta(context));
+						context.targetEl=obj.children('.mura-object-content').node;
+						Mura.displayObjectInstances[obj.data('instanceid')]=new Mura.DisplayObject[template]( context );
+                    } else if(typeof Mura.templates[template] != 'undefined'){
+						context.html='';
+						obj.html(Mura.templates.content(context));
+						obj.prepend(Mura.templates.meta(context));
+						context.targetEl=obj.children('.mura-object-content').node;
+						Mura.templates[template](context);
+					}	else {
 						console.log('Missing Client Template for:');
 						console.log(obj.data());
 					}
 				}
 			}
 		} else {
-			if(obj.data('object')=='container'){
-				obj.prepend(mura.templates.meta(obj.data()));
-			} else {
-				var template=obj.data('clienttemplate') || obj.data('object');
+			var context=obj.data();
 
-				if(typeof mura.templates[template] == 'function'){
-					var context=obj.data();
-					context.html=mura.templates[template](obj.data());
-					obj.html(mura.templates.content(context));
-					obj.prepend(mura.templates.meta(context));
-				} else {
+			if(obj.data('object')=='container'){
+				obj.prepend(Mura.templates.meta(context));
+			} else {
+                var template=obj.data('clienttemplate') || obj.data('object');
+                var properNameCheck=firstToUpperCase(template);
+
+                if(typeof Mura.DisplayObject[properNameCheck] != 'undefined'){
+                    template=properNameCheck;
+                }
+
+				if(typeof Mura.DisplayObject[template] == 'function'){
+					context.html='';
+					obj.html(Mura.templates.content(context));
+					obj.prepend(Mura.templates.meta(context));
+					context.targetEl=obj.children('.mura-object-content').node;
+					Mura.displayObjectInstances[obj.data('instanceid')]=new Mura.DisplayObject[template]( context );
+                } else if(typeof Mura.templates[template] != 'undefined'){
+                    context.html='';
+                    obj.html(Mura.templates.content(context));
+                    obj.prepend(Mura.templates.meta(context));
+                    context.targetEl=obj.children('.mura-object-content').node;
+                    Mura.templates[template](context);
+                } else {
 					console.log('Missing Client Template for:');
 					console.log(obj.data());
 				}
 			}
 		}
 
-		if(mura.layoutmanager && mura.editing){
-			if(obj.data('object')=='folder' || obj.data('object')=='gallery' || obj.data('object')=='calendar'){
+		//obj.hide().show();
+
+		if(Mura.layoutmanager && Mura.editing){
+			if(obj.hasClass('mura-body-object')){
+				obj.children('.frontEndToolsModal').remove();
 				obj.prepend(layoutmanagertoolbar);
-				muraInlineEditor.setAnchorSaveChecks(obj.node);
+				MuraInlineEditor.setAnchorSaveChecks(obj.node);
 
 				obj
-				.addClass('active')
+				.addClass('mura-active')
 				.hover(
 					function(e){
 						//e.stopPropagation();
-						mura('.mura-active-target').removeClass('mura-active-target');
-						mura(this).addClass('mura-active-target');
+						Mura('.mura-active-target').removeClass('mura-active-target');
+						Mura(this).addClass('mura-active-target');
 					},
 					function(e){
 						//e.stopPropagation();
-						mura(this).removeClass('mura-active-target');
+						Mura(this).removeClass('mura-active-target');
 					}
 				);
 			} else {
-				if(mura.type == 'Variation'){
+				if(Mura.type == 'Variation'){
 					var objectData=obj.data();
-					if(window.muraInlineEditor && (window.muraInlineEditor.objectHasConfigurator(objectData) || window.muraInlineEditor.objectHasEditor(objectData))){
+					if(root.MuraInlineEditor && (root.MuraInlineEditor.objectHasConfigurator(obj)  || (!root.Mura.layoutmanager && root.MuraInlineEditor.objectHasEditor(objectParams)) ) ){
+						obj.children('.frontEndToolsModal').remove();
 						obj.prepend(layoutmanagertoolbar);
-						muraInlineEditor.setAnchorSaveChecks(obj.node);
+						MuraInlineEditor.setAnchorSaveChecks(obj.node);
 
 						obj
-							.addClass('active')
+							.addClass('mura-active')
 							.hover(
 								function(e){
 									//e.stopPropagation();
-									mura('.mura-active-target').removeClass('mura-active-target');
-									mura(this).addClass('mura-active-target');
+									Mura('.mura-active-target').removeClass('mura-active-target');
+									Mura(this).addClass('mura-active-target');
 								},
 								function(e){
 									//e.stopPropagation();
-									mura(this).removeClass('mura-active-target');
+									Mura(this).removeClass('mura-active-target');
 								}
 							);
+
+						Mura.initDraggableObject(self);
 					}
 				} else {
-					var region=mura(self).closest(".mura-region-local");
+					var region=Mura(self).closest(".mura-region-local");
 					if(region && region.length ){
 						if(region.data('perm')){
 							var objectData=obj.data();
 
-							if(window.muraInlineEditor && (window.muraInlineEditor.objectHasConfigurator(objectData) || window.muraInlineEditor.objectHasEditor(objectData))){
+							if(root.MuraInlineEditor && (root.MuraInlineEditor.objectHasConfigurator(obj) || (!root.Mura.layoutmanager && root.MuraInlineEditor.objectHasEditor(objectData)) ) ){
+								obj.children('.frontEndToolsModal').remove();
 								obj.prepend(layoutmanagertoolbar);
-								muraInlineEditor.setAnchorSaveChecks(obj.node);
+								MuraInlineEditor.setAnchorSaveChecks(obj.node);
 
 								obj
-									.addClass('active')
+									.addClass('mura-active')
 									.hover(
 										function(e){
 											//e.stopPropagation();
-											mura('.mura-active-target').removeClass('mura-active-target');
-											mura(this).addClass('mura-active-target');
+											Mura('.mura-active-target').removeClass('mura-active-target');
+											Mura(this).addClass('mura-active-target');
 										},
 										function(e){
 											//e.stopPropagation();
-											mura(this).removeClass('mura-active-target');
+											Mura(this).removeClass('mura-active-target');
 										}
 									);
+
+								Mura.initDraggableObject(self);
 							}
 						}
 					}
@@ -1679,7 +1862,7 @@
 		processMarkup(obj.node);
 
 		obj.find('a[href="javascript:history.back();"]').each(function(){
-			mura(this).off("click").on("click",function(e){
+			Mura(this).off("click").on("click",function(e){
 				if(self.prevInnerHTML){
 					e.preventDefault();
 					wireUpObject(obj,self.prevInnerHTML);
@@ -1695,17 +1878,23 @@
 			});
 		});
 
-		each(self.getElementsByTagName('FORM'),function(el,i){
-			el.onsubmit=function(){return validateFormAjax(this);};
+
+		obj.find('FORM').each(function(){
+			var form=Mura(this);
+			var self=this;
+
+			if(form.data('async') || !(form.hasData('async') && !form.data('async')) && !(form.hasData('autowire') && !form.data('autowire')) && !form.attr('action') && !form.attr('onsubmit') && !form.attr('onSubmit')){
+				self.onsubmit=function(){return validateFormAjax(this);};
+			}
 		});
 
 		if(obj.data('nextnid')){
 			obj.find('.mura-next-n a').each(function(){
-				mura(this).on('click',function(e){
+				Mura(this).on('click',function(e){
 					e.preventDefault();
 					var a=this.getAttribute('href').split('?');
 					if(a.length==2){
-						window.location.hash=a[1];
+						root.location.hash=a[1];
 					}
 
 				});
@@ -1718,10 +1907,14 @@
 
 	function handleResponse(obj,resp){
 
-		obj=(obj.node) ? obj : mura(obj);
+		obj=(obj.node) ? obj : Mura(obj);
 
-		if(resp.data.redirect){
-			location.href=resp.data.redirect;
+		if(typeof resp.data.redirect != 'undefined'){
+			if(resp.data.redirect && resp.data.redirect != location.href){
+				location.href=resp.data.redirect;
+			} else {
+				location.reload(true);
+			}
 		} else if(resp.data.apiEndpoint){
 			ajax({
 		        type:"POST",
@@ -1746,41 +1939,70 @@
 		}
 	}
 
-	function processObject(el,queue){
+	function processDisplayObject(el,queue,rerender){
 
-		var obj=(el.node) ? el : mura(el);
+		var obj=(el.node) ? el : Mura(el);
 		el =el.node || el;
 		var self=el;
+		var rendered=!rerender && !(obj.hasClass('mura-async-object') || obj.data('render')=='client'|| obj.data('async'));
 
-		queue=(queue==null) ? false : queue;
+		queue=(queue==null || rendered) ? false : queue;
 
-		if(queue && !isScrolledIntoView(el)){
-			setTimeout(function(){processObject(el,true)},10);
+		if(document.createEvent && queue && !isScrolledIntoView(el)){
+			setTimeout(function(){processDisplayObject(el,true)},10);
 			return;
 		}
 
-		return new Promise(function(resolve,reject) {
+		if(!self.getAttribute('data-instanceid')){
+			self.setAttribute('data-instanceid',createUUID());
+		}
 
-			if(!self.getAttribute('data-instanceid')){
-				self.setAttribute('data-instanceid',createUUID());
-			}
+		//if(obj.data('async')){
+			obj.addClass("mura-async-object");
+		//}
 
-			if(obj.data('async')){
-				obj.addClass("mura-async-object");
-			}
+		if(obj.data('object')=='container'){
 
-			if(obj.data('object')=='container'){
+			obj.html(Mura.templates.content(obj.data()));
 
-				obj.html(mura.templates.content(obj.data()));
+			obj.find('.mura-object').each(function(){
+				this.setAttribute('data-instanceid',createUUID());
+			});
 
-				obj.find('.mura-object').each(function(){
-					this.setAttribute('data-instanceid',createUUID());
+		}
+
+		if(rendered){
+			return new Promise(function(resolve,reject) {
+				var forms=obj.find('form');
+
+				obj.find('form').each(function(){
+					var form=Mura(this);
+
+					if(form.data('async') || !(form.hasData('async') && !form.data('async')) && !(form.hasData('autowire') && !form.data('autowire')) && !form.attr('action') && !form.attr('onsubmit') && !form.attr('onSubmit')){
+						form.on('submit',function(e){
+							e.preventDefault();
+							validateForm(this,
+								function(frm){
+									submitForm(frm,obj);
+								}
+							);
+
+							return false;
+						});
+					}
+
+
 				});
-				obj.hide().show();
 
-			}
+				if(typeof resolve == 'function'){
+					resolve(obj);
+				}
 
-			var data=deepExtend(setLowerCaseKeys(getData(self)),urlparams,{siteid:window.mura.siteid,contentid:window.mura.contentid,contenthistid:window.mura.contenthistid});
+			});
+		}
+
+		return new Promise(function(resolve,reject) {
+			var data=deepExtend(setLowerCaseKeys(getData(self)),urlparams,{siteid:root.Mura.siteid,contentid:root.Mura.contentid,contenthistid:root.Mura.contenthistid});
 
 			delete data.inited;
 
@@ -1793,7 +2015,7 @@
 			}
 
 			if('objectparams' in data){
-				data['objectparams']= $escape(JSON.stringify(data['objectparams']));
+				data['objectparams']= encodeURIComponent(JSON.stringify(data['objectparams']));
 			}
 
 			delete data.params;
@@ -1811,9 +2033,9 @@
 					}
 				} else {
 					//console.log(data);
-					self.innerHTML=window.mura.preloaderMarkup;
+					self.innerHTML=root.Mura.preloaderMarkup;
 					ajax({
-						url:window.mura.apiEndpoint + '?method=processAsyncObject',
+						url:root.Mura.apiEndpoint + '?method=processAsyncObject',
 						type:'get',
 						data:data,
 						success:function(resp){
@@ -1835,7 +2057,7 @@
 
 	function handleHashChange(){
 
-		var hash=window.location.hash;
+		var hash=root.location.hash;
 
 		if(hash){
 			hash=hash.substring(1);
@@ -1844,13 +2066,13 @@
 		if(hash){
 			hashparams=getQueryStringParams(hash);
 			if(hashparams.nextnid){
-				mura('.mura-async-object[data-nextnid="' + hashparams.nextnid +'"]').each(function(){
-					mura(this).data(hashparams);
+				Mura('.mura-async-object[data-nextnid="' + hashparams.nextnid +'"]').each(function(){
+					Mura(this).data(hashparams);
 					processAsyncObject(this);
 				});
 			} else if(hashparams.objectid){
-				mura('.mura-async-object[data-objectid="' + hashparams.objectid +'"]').each(function(){
-					mura(this).data(hashparams);
+				Mura('.mura-async-object[data-objectid="' + hashparams.objectid +'"]').each(function(){
+					Mura(this).data(hashparams);
 					processAsyncObject(this);
 				});
 			}
@@ -1863,16 +2085,68 @@
 
 
 	function extendClass (baseClass,subClass){
-		var placeholder=function(){
+		var muraObject=function(){
 			this.init.apply(this,arguments);
 		}
 
-		placeholder.prototype = Object.create(baseClass.prototype);
-		placeholder.prototype.constructor = placeholder;
+		muraObject.prototype = Object.create(baseClass.prototype);
+		muraObject.prototype.constructor = muraObject;
+		muraObject.prototype.handlers={};
 
-		window.mura.extend(placeholder.prototype,subClass);
+		muraObject.reopen=function(subClass){
+				root.Mura.extend(muraObject.prototype,subClass);
+			};
 
-		return placeholder;
+		muraObject.reopenClass=function(subClass){
+				root.Mura.extend(muraObject,subClass);
+			};
+
+		muraObject.on=function(eventName,fn){
+			eventName=eventName.toLowerCase();
+
+			if(typeof muraObject.prototype.handlers[eventName] == 'undefined'){
+				muraObject.prototype.handlers[eventName]=[];
+			}
+
+			if(!fn){
+				return muraObject;
+			}
+
+			for(var i=0;i < muraObject.prototype.handlers[eventName].length;i++){
+				if(muraObject.prototype.handlers[eventName][i]==handler){
+					return muraObject;
+				}
+			}
+
+
+			muraObject.prototype.handlers[eventName].push(fn);
+			return muraObject;
+		};
+
+		muraObject.off=function(eventName,fn){
+			eventName=eventName.toLowerCase();
+
+			if(typeof muraObject.prototype.handlers[eventName] == 'undefined'){
+				muraObject.prototype.handlers[eventName]=[];
+			}
+
+			if(!fn){
+				muraObject.prototype.handlers[eventName]=[];
+				return muraObject;
+			}
+
+			for(var i=0;i < muraObject.prototype.handlers[eventName].length;i++){
+				if(muraObject.prototype.handlers[eventName][i]==handler){
+					muraObject.prototype.handlers[eventName].splice(i,1);
+				}
+			}
+			return muraObject;
+		}
+
+
+		root.Mura.extend(muraObject.prototype,subClass);
+
+		return muraObject;
 	}
 
 	function getQueryStringParams(queryString) {
@@ -1924,7 +2198,22 @@
 	}
 
 	function getURLParams() {
-		return getQueryStringParams(window.location.search);
+		return getQueryStringParams(root.location.search);
+	}
+
+	//http://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
+	function hashCode(s){
+		var hash = 0, strlen = s.length, i, c;
+
+		if ( strlen === 0 ) {
+			return hash;
+		}
+		for ( i = 0; i < strlen; i++ ) {
+			c = s.charCodeAt( i );
+			hash = ((hash<<5)-hash)+c;
+			hash = hash & hash; // Convert to 32bit integer
+		}
+		return (hash >>> 0);
 	}
 
 	function init(config){
@@ -1933,11 +2222,11 @@
 		}
 
 		if(!config.assetpath){
-			config.assetpath=config.context;
+			config.assetpath=config.context + "/" + config.siteid;
 		}
 
 		if(!config.apiEndpoint){
-			config.apiEndpoint=config.context + '/index.cfm/_api/json/v1/';
+			config.apiEndpoint=config.context + '/index.cfm/_api/json/v1/' + config.siteid + '/';
 		}
 
 		if(!config.pluginspath){
@@ -1964,46 +2253,46 @@
 			config.mobileformat=false;
 		}
 
-		if(typeof config.windowdocumentdomain != 'undefined' && config.windowdocumentdomain != ''){
-			window.document.domain=config.windowdocumentdomain;
+		if(typeof config.rootdocumentdomain != 'undefined' && config.rootdocumentdomain != ''){
+			root.document.domain=config.rootdocumentdomain;
 		}
 
-		mura.editing;
+		Mura.editing;
 
-		extend(window.mura,config);
+		extend(root.Mura,config);
 
-		mura(function(){
+		Mura(function(){
 
-			var hash=window.location.hash;
+			var hash=root.location.hash;
 
 			if(hash){
 				hash=hash.substring(1);
 			}
 
 			hashparams=setLowerCaseKeys(getQueryStringParams(hash));
-			urlparams=setLowerCaseKeys(getQueryStringParams(window.location.search));
+			urlparams=setLowerCaseKeys(getQueryStringParams(root.location.search));
 
 			if(hashparams.nextnid){
-				mura('.mura-async-object[data-nextnid="' + hashparams.nextnid +'"]').each(function(){
-					mura(this).data(hashparams);
+				Mura('.mura-async-object[data-nextnid="' + hashparams.nextnid +'"]').each(function(){
+					Mura(this).data(hashparams);
 				});
 			} else if(hashparams.objectid){
-				mura('.mura-async-object[data-nextnid="' + hashparams.objectid +'"]').each(function(){
-					mura(this).data(hashparams);
+				Mura('.mura-async-object[data-nextnid="' + hashparams.objectid +'"]').each(function(){
+					Mura(this).data(hashparams);
 				});
 			}
 
-			mura(window).on('hashchange',handleHashChange);
+			Mura(root).on('hashchange',handleHashChange);
 
 			processMarkup(document);
 
-			mura(document)
+			Mura(document)
 			.on("keydown", function(event){
 				loginCheck(event.which);
 			});
 
 			/*
-			mura.addEventHandler(
+			Mura.addEventHandler(
 				{
 					asyncObjectRendered:function(event){
 						alert(this.innerHTML);
@@ -2011,43 +2300,43 @@
 				}
 			);
 
-			mura('#my-id').addDisplayObject('objectname',{..});
+			Mura('#my-id').addDisplayObject('objectname',{..});
 
-			mura.login('userame','password')
+			Mura.login('userame','password')
 				.then(function(data){
 					alert(data.success);
 				});
 
-			mura.logout())
+			Mura.logout())
 				.then(function(data){
 					alert('you have logged out!');
 				});
 
-			mura.renderFilename('')
+			Mura.renderFilename('')
 				.then(function(item){
 					alert(item.get('title'));
 				});
 
-			mura.getEntity('content').loadBy('contentid','00000000000000000000000000000000001')
+			Mura.getEntity('content').loadBy('contentid','00000000000000000000000000000000001')
 				.then(function(item){
 					alert(item.get('title'));
 				});
 
-			mura.getEntity('content').loadBy('contentid','00000000000000000000000000000000001')
+			Mura.getEntity('content').loadBy('contentid','00000000000000000000000000000000001')
 				.then(function(item){
 					item.get('kids').then(function(kids){
 						alert(kids.get('items').length);
 					});
 				});
 
-			mura.getEntity('content').loadBy('contentid','1C2AD93E-E39C-C758-A005942E1399F4D6')
+			Mura.getEntity('content').loadBy('contentid','1C2AD93E-E39C-C758-A005942E1399F4D6')
 				.then(function(item){
 					item.get('parent').then(function(parent){
 						alert(parent.get('title'));
 					});
 				});
 
-			mura.getEntity('content').
+			Mura.getEntity('content').
 				.set('parentid''1C2AD93E-E39C-C758-A005942E1399F4D6')
 				.set('approved',1)
 				.set('title','test 5')
@@ -2056,7 +2345,7 @@
 					alert(item.get('title'));
 				});
 
-			mura.getEntity('content').
+			Mura.getEntity('content').
 				.set(
 					{
 						parentid:'1C2AD93E-E39C-C758-A005942E1399F4D6',
@@ -2064,11 +2353,12 @@
 						title:'test 5'
 					}
 				.save()
-				.then(function(item){
-					alert(item.get('title'));
-				});
+				.then(
+					function(item){
+						alert(item.get('title'));
+					});
 
-			mura.findQuery({
+			Mura.findQuery({
 					entityname:'content',
 					title:'Home'
 				})
@@ -2077,30 +2367,35 @@
 				});
 			*/
 
-			mura(document).trigger('muraReady');
+			Mura(document).trigger('muraReady');
 
 		});
 
-	    return window.mura
+	    return root.Mura
 	}
 
-	extend(window,{
-		mura:extend(
-			function(selector){
+	extend(root,{
+		Mura:extend(
+			function(selector,context){
 				if(typeof selector == 'function'){
-					mura.ready(selector);
+					Mura.ready(selector);
 					return this;
 				} else {
-					return select(selector);
+					if(typeof context == 'undefined'){
+						return select(selector);
+					} else {
+						return select(context).find(selector);
+					}
 				}
 			},
 			{
 			rb:{},
+			generateOAuthToken:generateOauthToken,
 			entities:{},
 			submitForm:submitForm,
 			escapeHTML:escapeHTML,
 			unescapeHTML:unescapeHTML,
-			processObject:processObject,
+			processDisplayObject:processDisplayObject,
 			processAsyncObject:processAsyncObject,
 			resetAsyncObject:resetAsyncObject,
 			setLowerCaseKeys:setLowerCaseKeys,
@@ -2114,6 +2409,7 @@
 			off:off,
 			extend:extend,
 			inArray:inArray,
+			isNumeric:isNumeric,
 			post:post,
 			get:get,
 			deepExtend:deepExtend,
@@ -2132,6 +2428,7 @@
 			getEntity:getEntity,
 			renderFilename:renderFilename,
 			findQuery:findQuery,
+			getFeed:getFeed,
 			login:login,
 			logout:logout,
 			extendClass:extendClass,
@@ -2143,7 +2440,10 @@
 			parseString:parseString,
 			createCookie:createCookie,
 			readCookie:readCookie,
-			trim:trim
+			trim:trim,
+			hashCode:hashCode,
+			DisplayObject:{},
+			displayObjectInstances:{}
 			}
 		),
 		//these are here for legacy support
@@ -2156,10 +2456,13 @@
 		initMura:init
 	});
 
-	window.m=window.m || window.mura;
+    //Legacy for early adopter backwords support
+	root.mura=root.Mura
+	root.m=root.Mura;
+    root.Mura.displayObject=root.Mura.DisplayObject;
 
 	//for some reason this can't be added via extend
-	window.validateForm=validateForm;
+	root.validateForm=validateForm;
 
-
-})(window);
+	return root.Mura;
+}));

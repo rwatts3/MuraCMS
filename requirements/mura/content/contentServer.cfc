@@ -46,7 +46,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 --->
 <cfcomponent extends="mura.cfobject" output="false">
 
-<cffunction name="forcePathDirectoryStructure" output="false" returntype="any" access="remote">
+<cffunction name="forcePathDirectoryStructure" output="false" access="remote">
 <cfargument name="cgi_path">
 <cfargument name="siteID">
 <cfset var qstring="">
@@ -71,7 +71,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 </cfif>
 </cffunction>
 
-<cffunction name="setCGIPath" output="false" returntype="any" access="remote">
+<cffunction name="setCGIPath" output="false" access="remote">
 	<cfargument name="siteID"/>
 	<cfset var cgi_path="">
 	<cfset var parsed_path_info = cgi.path_info>
@@ -128,9 +128,9 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	<cfreturn cgi_path>
 </cffunction>
 
-<cffunction name="bindToDomain" output="false" returntype="any" access="remote">
+<cffunction name="bindToDomain" output="false" access="remote">
 	<cfargument name="isAdmin" required="true" default="false">
-	<cfargument name="domain" required="true" default="#cgi.http_host#">
+	<cfargument name="domain" required="true" default="">
 	<cfset var siteID= "" />
 	<cfset var rsSites=application.settingsManager.getList(sortBy="orderno") />
 	<cfset var site="">
@@ -139,8 +139,9 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	<cfset var checkDomain=listFirst(arguments.domain,":")>
 
 	<cfif not len(checkDomain)>
-		<cfset checkDomain=cgi.server_name>
+		<cfset checkDomain=listFirst(getBean('utility').getRequestHost(),":")>
 	</cfif>
+
 	<!--- check for exact host match to find siteID --->
 	<cfloop query="rsSites">
 	<cfset site=application.settingsManager.getSite(rsSites.siteID)>
@@ -180,7 +181,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 </cffunction>
 
-<cffunction name="parseURL" output="false" returntype="any" access="remote">
+<cffunction name="parseURL" output="false" access="remote">
 	<cfset var last="">
 	<cfset var theStart=0>
 	<cfset var trimLen=0>
@@ -265,7 +266,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 </cffunction>
 
-<cffunction name="parseURLLocal" output="false" returntype="any" access="remote">
+<cffunction name="parseURLLocal" output="false" access="remote">
 	<cfset var siteID="">
 	<cfset var cgi_path="">
 	<cfparam name="url.path" default="" />
@@ -290,7 +291,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	<cfreturn parseURL()>
 </cffunction>
 
-<cffunction name="parseURLRoot" output="false" returntype="any" access="remote">
+<cffunction name="parseURLRoot" output="false" access="remote">
 	<cfset var cgi_path="">
 	<cfset var siteid=bindToDomain()>
 
@@ -310,7 +311,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	<cfreturn parseURL()>
 </cffunction>
 
-<cffunction name="parseURLRootStub" output="false" returntype="any" access="remote">
+<cffunction name="parseURLRootStub" output="false" access="remote">
 	<cfset var urlStem="">
 	<cfset var last="">
 	<cfset var siteid=bindToDomain()>
@@ -358,7 +359,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 <cfreturn parseURL()>
 </cffunction>
 
-<cffunction name="Redirect" output="false" returntype="any">
+<cffunction name="Redirect" output="false">
 
 	<cfset var rsSites=application.settingsManager.getList(sortBy="orderno") />
 	<cfset var site="">
@@ -381,7 +382,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 </cffunction>
 
-<cffunction name="renderFilename" output="true" access="public">
+<cffunction name="renderFilename" output="true">
 	<cfargument name="filename" default="">
 	<cfargument name="validateDomain" default="true">
 	<cfargument name="parseURL" default="true">
@@ -417,7 +418,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 
 </cffunction>
 
-<cffunction name="render404" output="true" access="public">
+<cffunction name="render404" output="true">
 	<cfheader statuscode="404" statustext="Content Not Found" />
 	<!--- Must reset the linkservID to prevent recursive 404s --->
 	<cfset request.linkServID="">
@@ -506,6 +507,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 <cffunction name="handleAPIRequest" output="false">
 	<cfargument name="path" default="#cgi.path_info#">
 	<cfset var jsonendpoint="/_api/json/v1">
+	<cfset var restendpoint="/_api/rest/v1">
 	<cfset var ajaxendpoint="/_api/ajax/v1">
 	<cfset var feedendpoint="/_api/feed/v1">
 	<cfset var fileendpoint="/_api/render/">
@@ -516,10 +518,10 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	<cfset var legacyfileendpoint="/tasks/render/">
 	<cfset var legacywidgetendpoint="/tasks/widgets/">
 
-	<cfif left(path,len(jsonendpoint)) eq jsonendpoint or left(path,len(ajaxendpoint)) eq ajaxendpoint>
+	<cfif (left(arguments.path,len(jsonendpoint)) eq jsonendpoint or left(arguments.path,len(ajaxendpoint)) eq ajaxendpoint)>
 		<cfset request.muraAPIRequest=true>
-		<cfif listLen(path,'/') gte 4>
-			<cfreturn getBean('settingsManager').getSite(listGetAt(path,4,'/')).getApi('json','v1').processRequest(arguments.path)>
+		<cfif listLen(arguments.path,'/') gte 4>
+			<cfreturn getBean('settingsManager').getSite(listGetAt(arguments.path,4,'/')).getApi('json','v1').processRequest(arguments.path)>
 		<cfelseif isDefined('form.siteid')>
 			<cfreturn getBean('settingsManager').getSite(form.siteid).getApi('json','v1').processRequest(arguments.path)>
 		<cfelseif isDefined('url.siteid')>
@@ -527,9 +529,21 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 		<cfelse>
 			<cfreturn getBean('settingsManager').getSite('default').getApi('json','v1').processRequest(arguments.path)>
 		</cfif>
-	<cfelseif isDefined('url.feedid') and (left(path,len(feedendpoint)) eq feedendpoint or left(path,len(legacyfeedendpoint)) eq legacyfeedendpoint)>
-		<cfif listLen(path,'/') gte 4>
-			<cfreturn getBean('settingsManager').getSite(listGetAt(path,4,'/')).getApi('feed','v1').processRequest(arguments.path)>
+	<cfelseif left(arguments.path,len(restendpoint)) eq restendpoint or left(arguments.path,len(restendpoint)) eq restendpoint>
+		<cfset request.muraAPIRequest=true>
+		<cfset request.muraAPIRequestMode='rest'>
+		<cfif listLen(arguments.path,'/') gte 4>
+			<cfreturn getBean('settingsManager').getSite(listGetAt(arguments.path,4,'/')).getApi('json','v1').processRequest(arguments.path)>
+		<cfelseif isDefined('form.siteid')>
+			<cfreturn getBean('settingsManager').getSite(form.siteid).getApi('json','v1').processRequest(arguments.path)>
+		<cfelseif isDefined('url.siteid')>
+			<cfreturn getBean('settingsManager').getSite(url.siteid).getApi('json','v1').processRequest(arguments.path)>
+		<cfelse>
+			<cfreturn getBean('settingsManager').getSite('default').getApi('json','v1').processRequest(arguments.path)>
+		</cfif>
+	<cfelseif isDefined('url.feedid') and (left(arguments.path,len(feedendpoint)) eq feedendpoint or left(arguments.path,len(legacyfeedendpoint)) eq legacyfeedendpoint)>
+		<cfif listLen(arguments.path,'/') gte 4>
+			<cfreturn getBean('settingsManager').getSite(listGetAt(arguments.path,4,'/')).getApi('feed','v1').processRequest(arguments.path)>
 		<cfelseif isDefined('form.siteid')>
 			<cfreturn getBean('settingsManager').getSite(form.siteid).getApi('feed','v1').processRequest(arguments.path)>
 		<cfelseif isDefined('url.siteid')>
@@ -555,7 +569,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 				<cfreturn application.contentRenderer.renderMedium(url.fileID)>
 			</cfcase>
 		</cfswitch>
-	<cfelseif left(path,len(sitemonitorendpoint)) eq sitemonitorendpoint>
+	<cfelseif left(arguments.path,len(sitemonitorendpoint)) eq sitemonitorendpoint>
 		<cfset var theTime=now()/>
 		<cfset var emailList="" />
 		<cfset var theemail="" />
@@ -665,8 +679,9 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	<cfargument name="event">
 	<cfif not arguments.event.valueExists('localHandler')>
 		<cfset request.muraFrontEndRequest=true>
+		<cfset var sessionData=getSession()>
 		<cfparam name="request.returnFormat" default="HTML">
-		<cfparam name="session.siteid" default="#arguments.event.getValue('siteID')#">
+		<cfparam name="sessionData.siteid" default="#arguments.event.getValue('siteID')#">
 		<cfif fileExists(expandPath("/#application.configBean.getWebRootMap()#/#arguments.event.getValue('siteid')#/includes/servlet.cfc"))>
 			<cfset servlet=createObject("component","#application.configBean.getWebRootMap()#.#arguments.event.getValue('siteid')#.includes.servlet").init(arguments.event)>
 		<cfelse>
@@ -721,10 +736,11 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	</cfif>
 </cffunction>
 
-<cffunction name="doRequest" output="false" returntype="any">
+<cffunction name="doRequest" output="false">
 <cfargument name="event">
 	<cfset var response=""/>
 	<cfset var servlet = "" />
+	<cfset var sessionData=getSession()>
 
 	<cfset loadLocalEventHandler(arguments.event)>
 
@@ -795,7 +811,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	</cfif>
 
 	<cfset application.pluginManager.announceEvent('onSiteRequestEnd',arguments.event)/>
-	<cfif isDefined("session.mura.showTrace") and session.mura.showTrace and listFindNoCase(session.mura.memberships,"S2IsPrivate")>
+	<cfif isDefined("sessionData.mura.showTrace") and sessionData.mura.showTrace and listFindNoCase(sessionData.mura.memberships,"S2IsPrivate")>
 		<cfset response=replaceNoCase(response,"</html>","#application.utility.dumpTrace()#</html>")>
 	</cfif>
 
@@ -809,7 +825,7 @@ version 2 without this exception.  You may, if you choose, apply this exception 
 	</cfif>
 </cffunction>
 
-<cffunction name="getURLStem" access="public" output="false" returntype="string">
+<cffunction name="getURLStem" output="false">
 	<cfargument name="siteID">
 	<cfargument name="filename">
 	<cfargument name="siteidinurls" default="#application.configBean.getSiteIDInURLS()#">

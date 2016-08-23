@@ -43,14 +43,42 @@
 	For clarity, if you create a modified version of Mura CMS, you are not obligated to grant this special exception for your
 	modified version; it is your choice whether to do so, or to make such modified version available under the GNU General Public License
 	version 2 without this exception.  You may, if you choose, apply this exception to your own modified versions of Mura CMS. */
-
-;(function(window){
-	window.mura.Entity=window.mura.Core.extend({
+;(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define(['Mura'], factory);
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        factory(require('Mura'));
+    } else {
+        // Browser globals (root is window)
+        factory(root.Mura);
+    }
+}(this, function (mura) {
+	Mura.Entity=Mura.Core.extend({
 		init:function(properties){
-			properties || {};
+			properties=properties || {};
 			properties.entityname = properties.entityname || 'content';
-			properties.siteid = properties.siteid || window.mura.siteid;
+			properties.siteid = properties.siteid || Mura.siteid;
 			this.set(properties);
+
+			if(typeof this.properties.isnew == 'undefined'){
+				this.properties.isnew=1;
+			}
+
+			if(this.properties.isnew){
+				this.set('isdirty',true);
+			} else {
+				this.set('isdirty',false);
+			}
+
+			if(typeof this.properties.isdeleted == 'undefined'){
+				this.properties.isdeleted=false;
+			}
+
+			this.cachePut();
 		},
 
 		get:function(propertyName,defaultValue){
@@ -62,12 +90,12 @@
 
 					return new Promise(function(resolve,reject) {
 						if('items' in self.properties[propertyName]){
-							var returnObj = new window.mura.EntityCollection(self.properties[propertyName]);
+							var returnObj = new Mura.EntityCollection(self.properties[propertyName]);
 						} else {
-							if(window.mura.entities[self.properties[propertyName].entityname]){
-								var returnObj = new window.mura.entities[self.properties[propertyName].entityname](obj.properties[propertyName]);
+							if(Mura.entities[self.properties[propertyName].entityname]){
+								var returnObj = new Mura.entities[self.properties[propertyName].entityname](obj.properties[propertyName]);
 							} else {
-								var returnObj = new window.mura.Entity(self.properties[propertyName]);
+								var returnObj = new Mura.Entity(self.properties[propertyName]);
 							}
 						}
 
@@ -77,25 +105,33 @@
 					});
 
 				} else {
-
+					if(typeof defaultValue == 'object'){
+						var params=defaultValue;
+					} else {
+						var params={};
+					}
 					return new Promise(function(resolve,reject) {
 
-						window.mura.ajax({
+						Mura.ajax({
 							type:'get',
 							url:self.properties.links[propertyName],
+							params:params,
 							success:function(resp){
 
 								if('items' in resp.data){
-									var returnObj = new window.mura.EntityCollection(resp.data);
+									var returnObj = new Mura.EntityCollection(resp.data);
 								} else {
-									if(window.mura.entities[obj.entityname]){
-										var returnObj = new window.mura.entities[obj.entityname](obj);
+									if(Mura.entities[obj.entityname]){
+										var returnObj = new Mura.entities[obj.entityname](obj);
 									} else {
-										var returnObj = new window.mura.Entity(resp.data);
+										var returnObj = new Mura.Entity(resp.data);
 									}
 								}
 
-								self.set(propertyName,resp.data);
+								//Dont cache it there are custom params
+								if(Mura.isEmptyObject(params)){
+									self.set(propertyName,resp.data);
+								}
 
 								if(typeof resolve == 'function'){
 									resolve(returnObj);
@@ -120,9 +156,11 @@
 		set:function(propertyName,propertyValue){
 
 			if(typeof propertyName == 'object'){
-				this.properties=window.mura.deepExtend(this.properties,propertyName);
-			} else {
+				this.properties=Mura.deepExtend(this.properties,propertyName);
+				this.set('isdirty',true);
+			} else if(typeof this.properties[propertyName] == 'undefined' || this.properties[propertyName] != propertyValue){
 				this.properties[propertyName]=propertyValue;
+				this.set('isdirty',true);
 			}
 
 			return this;
@@ -141,22 +179,19 @@
 			return this.loadBy('id',this.get('id'));
 		},
 
-		loadBy:function(propertyName,propertyValue){
-
-			propertyName=propertyName || 'id';
-			propertyValue=propertyValue || this.get(propertyName);
-
-			var self=this;
+		'new':function(params){
 
 			return new Promise(function(resolve,reject){
-				var params={
-					entityname:self.get('entityname'),
-					method:'findQuery',
-					siteid:self.get('siteid')};
+				params=Mura.extend(
+					{
+						entityname:self.get('entityname'),
+						method:'findQuery',
+						siteid:self.get('siteid')
+					},
+					params
+				);
 
-					params[propertyName]=propertyValue;
-
-					window.mura.findQuery(params).then(function(collection){
+				Mura.findNew(params).then(function(collection){
 
 					if(collection.get('items').length){
 						self.set(collection.get('items')[0].getAll());
@@ -168,17 +203,63 @@
 			});
 		},
 
-		validate:function(){
+		loadBy:function(propertyName,propertyValue,params){
+
+			propertyName=propertyName || 'id';
+			propertyValue=propertyValue || this.get(propertyName);
 
 			var self=this;
 
+			if(propertyName =='id'){
+				var cachedValue = Mura.datacache.get(propertyValue);
+
+				if(cachedValue){
+					this.set(cachedValue);
+					return new Promise(function(resolve,reject){
+						resolve(self);
+					});
+				}
+			}
+
+			return new Promise(function(resolve,reject){
+				params=Mura.extend(
+					{
+						entityname:self.get('entityname'),
+						method:'findQuery',
+						siteid:self.get('siteid')
+					},
+					params
+				);
+
+				params[propertyName]=propertyValue;
+
+				Mura.findQuery(params).then(function(collection){
+
+					if(collection.get('items').length){
+						self.set(collection.get('items')[0].getAll());
+					}
+					if(typeof resolve == 'function'){
+						resolve(self);
+					}
+				});
+			});
+		},
+
+		validate:function(fields){
+			fields=fields || '';
+
+			var self=this;
+			var data=Mura.deepExtend({},self.getAll());
+
+			data.fields=fields;
+
 			return new Promise(function(resolve,reject) {
 
-				window.mura.ajax({
+				Mura.ajax({
 					type: 'post',
-					url: window.mura.apiEndpoint + '?method=validate',
+					url: Mura.apiEndpoint + '?method=validate',
 					data: {
-							data: window.mura.escape(JSON.stringify(self.getAll())),
+							data: Mura.escape(data),
 							validations: '{}',
 							version: 4
 						},
@@ -199,7 +280,7 @@
 		},
 		hasErrors:function(){
 			var errors=this.get('errors',{});
-			return (typeof errors=='string' && errors !='') || (typeof errors=='object' && !window.mura.isEmptyObject(errors));
+			return (typeof errors=='string' && errors !='') || (typeof errors=='object' && !Mura.isEmptyObject(errors));
 		},
 		getErrors:function(){
 			return this.get('errors',{});
@@ -207,17 +288,27 @@
 		save:function(){
 			var self=this;
 
+			if(!this.get('isdirty')){
+				return new Promise(function(resolve,reject) {
+					if(typeof resolve == 'function'){
+						resolve(self);
+					}
+				});
+			}
+
 			if(!this.get('id')){
 				return new Promise(function(resolve,reject) {
-					var temp=window.mura.deepExtend({},self.getAll());
+					var temp=Mura.deepExtend({},self.getAll());
 
-					window.mura.ajax({
+					Mura.ajax({
 						type:'get',
-						url:window.mura.apiEndpoint + self.get('siteid') + '/' + self.get('entityname') + '/new' ,
+						url:Mura.apiEndpoint + self.get('entityname') + '/new' ,
 						success:function(resp){
 							self.set(resp.data);
 							self.set(temp);
-							self.set('id',resp.data.id)
+							self.set('id',resp.data.id);
+							self.set('isdirty',true);
+							self.cachePut();
 							self.save().then(resolve,reject);
 						}
 					});
@@ -226,29 +317,25 @@
 			} else {
 				return new Promise(function(resolve,reject) {
 
-					if(self.get('entityname') == 'content'){
-						var context=self.get('contentid');
-					} else {
-						var context=self.get('id');
-					}
+					var context=self.get('id');
 
-					window.mura.ajax({
+					Mura.ajax({
 						type:'post',
-						url:window.mura.apiEndpoint + '?method=generateCSRFTokens',
+						url:Mura.apiEndpoint + '?method=generateCSRFTokens',
 						data:{
 							siteid:self.get('siteid'),
 							context:context
 						},
 						success:function(resp){
-							window.mura.ajax({
+							Mura.ajax({
 									type:'post',
-									url:window.mura.apiEndpoint + '?method=save',
-									data:window.mura.extend(self.getAll(),{'csrf_token':resp.data.csrf_token,'csrf_token_expires':resp.data.csrf_token_expires}),
+									url:Mura.apiEndpoint + '?method=save',
+									data:Mura.extend(self.getAll(),{'csrf_token':resp.data.csrf_token,'csrf_token_expires':resp.data.csrf_token_expires}),
 									success:function(resp){
 										if(resp.data != 'undefined'){
 											self.set(resp.data)
-
-											if(self.get('saveErrors') || window.mura.isEmptyObject(self.getErrors())){
+											self.set('isdirty',false);
+											if(self.get('saveErrors') || Mura.isEmptyObject(self.getErrors())){
 												if(typeof resolve == 'function'){
 													resolve(self);
 												}
@@ -275,22 +362,22 @@
 
 		},
 
-		delete:function(){
+		'delete':function(){
 
 			var self=this;
 
 			return new Promise(function(resolve,reject) {
-				window.mura.ajax({
+				Mura.ajax({
 					type:'get',
-					url:window.mura.apiEndpoint + '?method=generateCSRFTokens',
+					url:Mura.apiEndpoint + '?method=generateCSRFTokens',
 					data:{
 						siteid:self.get('siteid'),
 						context:self.get('id')
 					},
 					success:function(resp){
-						window.mura.ajax({
-							type:'get',
-							url:window.mura.apiEndpoint + '?method=delete',
+						Mura.ajax({
+							type:'post',
+							url:Mura.apiEndpoint + '?method=delete',
 							data:{
 								siteid:self.get('siteid'),
 								id:self.get('id'),
@@ -299,6 +386,8 @@
 								'csrf_token_expires':resp.data.csrf_token_expires
 							},
 							success:function(){
+								self.set('isdeleted',true);
+								self.cachePurge();
 								if(typeof resolve == 'function'){
 									resolve(self);
 								}
@@ -308,8 +397,24 @@
 				});
 			});
 
+		},
+
+		getFeed:function(){
+			var siteid=get('siteid') || Mura.siteid;
+			return new Mura.Feed(this.get('entityName'));
+		},
+
+		cachePurge:function(){
+			Mura.datacache.purge(this.get('id'));
+			return this;
+		},
+
+		cachePut:function(){
+			if(!this.get('isnew')){
+				Mura.datacache.set(this.get('id'),this);
+			}
+			return this;
 		}
 
 	});
-
-})(window);
+}));

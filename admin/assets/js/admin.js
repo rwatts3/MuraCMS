@@ -1,33 +1,33 @@
-/* This file is part of Mura CMS. 
+/* This file is part of Mura CMS.
 
-	Mura CMS is free software: you can redistribute it and/or modify 
-	it under the terms of the GNU General Public License as published by 
-	the Free Software Foundation, Version 2 of the License. 
+	Mura CMS is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, Version 2 of the License.
 
-	Mura CMS is distributed in the hope that it will be useful, 
-	but WITHOUT ANY WARRANTY; without even the implied warranty of 
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
-	GNU General Public License for more details. 
+	Mura CMS is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License 
-	along with Mura CMS.  If not, see <http://www.gnu.org/licenses/>. 
+	You should have received a copy of the GNU General Public License
+	along with Mura CMS.  If not, see <http://www.gnu.org/licenses/>.
 
-	Linking Mura CMS statically or dynamically with other modules constitutes the preparation of a derivative work based on 
+	Linking Mura CMS statically or dynamically with other modules constitutes the preparation of a derivative work based on
 	Mura CMS. Thus, the terms and conditions of the GNU General Public License version 2 ("GPL") cover the entire combined work.
-	
+
 	However, as a special exception, the copyright holders of Mura CMS grant you permission to combine Mura CMS with programs
 	or libraries that are released under the GNU Lesser General Public License version 2.1.
-	
-	In addition, as a special exception, the copyright holders of Mura CMS grant you permission to combine Mura CMS with 
-	independent software modules (plugins, themes and bundles), and to distribute these plugins, themes and bundles without 
-	Mura CMS under the license of your choice, provided that you follow these specific guidelines: 
-	
-	Your custom code 
-	
+
+	In addition, as a special exception, the copyright holders of Mura CMS grant you permission to combine Mura CMS with
+	independent software modules (plugins, themes and bundles), and to distribute these plugins, themes and bundles without
+	Mura CMS under the license of your choice, provided that you follow these specific guidelines:
+
+	Your custom code
+
 	• Must not alter any default objects in the Mura CMS database and
 	• May not alter the default display of the Mura CMS logo within Mura CMS and
 	• Must not alter any files in the following directories.
-	
+
 	 /admin/
 	 /tasks/
 	 /config/
@@ -35,13 +35,13 @@
 	 /Application.cfc
 	 /index.cfm
 	 /MuraProxy.cfc
-	
-	You may copy and distribute Mura CMS with a plug-in, theme or bundle that meets the above guidelines as a combined work 
-	under the terms of GPL for Mura CMS, provided that you include the source code of that other code when and as the GNU GPL 
+
+	You may copy and distribute Mura CMS with a plug-in, theme or bundle that meets the above guidelines as a combined work
+	under the terms of GPL for Mura CMS, provided that you include the source code of that other code when and as the GNU GPL
 	requires distribution of source code.
-	
-	For clarity, if you create a modified version of Mura CMS, you are not obligated to grant this special exception for your 
-	modified version; it is your choice whether to do so, or to make such modified version available under the GNU General Public License 
+
+	For clarity, if you create a modified version of Mura CMS, you are not obligated to grant this special exception for your
+	modified version; it is your choice whether to do so, or to make such modified version available under the GNU General Public License
 	version 2 without this exception.  You may, if you choose, apply this exception to your own modified versions of Mura CMS. */
 
 function loadObject(url, target, message) {
@@ -135,7 +135,7 @@ function parseDateTimeSelector(id){
 		var strMonth = dtArray[dtFormat[0]];
 		var strDay = dtArray[dtFormat[1]];
 		var strYear = dtArray[dtFormat[2]];
-	
+
 		var strMinute = ($('#mura-' + id + 'Minute').length) ? $('#mura-' + id + 'Minute').val() : 0;
 		var strHour=($('#mura-' + id + 'Hour').length) ? $('#mura-' + id + 'Hour').val() : 0;
 
@@ -161,7 +161,7 @@ function parseDateTimeSelector(id){
 		}
 
 		var newVal="{ts '" + strYear + "-" + strMonth + "-" + strDay + " " + strHour + ":" + strMinute + ":00'}";
-		
+
 		$('#mura-' + id).val(newVal);
 		//alert($('#mura-' + id).val());
 	} else {
@@ -309,6 +309,9 @@ function openDisplay(id, close) {
 	if(document.getElementById(id).style.display == 'none') {
 
 		$("#" + id).slideDown();
+		if(id == 'editAdditionalTitles'){
+			$('#alertTitleSuccess').hide();
+		}
 		if(document.getElementById(id + 'Link')) {
 			var theLink = document.getElementById(id + 'Link');
 			theLink.innerHTML = '[' + close + ']';
@@ -588,7 +591,7 @@ function validateForm(theForm) {
 			modal: true,
 			position: getDialogPosition(),
 			buttons: {
-				Ok: function() {
+				Ok: {click: function() {
 					$(this).dialog('close');
 					if(firstErrorNode == "input") {
 						frmInputs[startAt].focus();
@@ -598,7 +601,10 @@ function validateForm(theForm) {
 						frmSelects[startAt].focus();
 					}
 				}
-			}
+				, text: 'OK'
+				, class: 'mura-primary'
+				} // /OK
+				}
 		});
 
 		return false;
@@ -628,18 +634,24 @@ function submitForm(frm, action, msg) {
 			$("#alertDialog").dialog({
 				modal: true,
 				position: getDialogPosition(),
+				resizable: false,
+				dialogClass: 'dialog-warning',
+				width: 400,
 				buttons: {
-					'Yes': function() {
-						$(this).dialog('close');
-						var frmInputs = currentFrm.getElementsByTagName("input");
-						for(f = 0; f < frmInputs.length; f++) {
-							if(frmInputs[f].getAttribute('name') == 'action') {
-								frmInputs[f].setAttribute('value', action);
+					Yes: {click: function() {
+							$(this).dialog('close');
+							var frmInputs = currentFrm.getElementsByTagName("input");
+							for(f = 0; f < frmInputs.length; f++) {
+								if(frmInputs[f].getAttribute('name') == 'action') {
+									frmInputs[f].setAttribute('value', action);
+								}
 							}
+							currentFrm.submit();				
 						}
-						currentFrm.submit();
-					},
-					'No': function() {
+						, text: 'Yes'
+						, class: 'mura-primary'
+						} // /Yes
+					, 'No': function() {
 						$(this).dialog('close');
 					}
 				}
@@ -676,7 +688,7 @@ function submitForm(frm, action, msg) {
 function actionModal(action) {
 	$('body').append('<div id="action-modal" class="modal-backdrop fade in"></div>');
 	$('#action-modal').spin(spinnerArgs);
-	
+
 	if(action){
 		if(typeof(action)=='string'){
 			location.href=action;
@@ -684,7 +696,7 @@ function actionModal(action) {
 			action();
 		}
 	}
- 
+
 	return false;
 }
 
@@ -745,7 +757,7 @@ function setHTMLEditors() {
 				toolbar: 'Default',
 				customConfig: 'config.js.cfm'
 			}, htmlEditorOnComplete);
-	
+
 		}
 	}
 }
@@ -755,10 +767,14 @@ function htmlEditorOnComplete(editorInstance) {
 	var instance = $(editorInstance).ckeditorGet();
 	instance.resetDirty();
 	var totalIntances = CKEDITOR.instances;
-	CKFinder.setupCKEditor(
-	instance, {
-		basePath: context + '/requirements/ckfinder/'
-	});
+
+	if(typeof CKFinder != 'undefined'){
+		CKFinder.setupCKEditor(
+			instance, {
+			basePath: context + '/requirements/ckfinder/'
+			}
+		);
+	}
 
 
 	HTMLEditorLoadCount++;
@@ -817,6 +833,7 @@ function setColorPickers(target) {
 }
 
 function setToolTips(target) {
+
 	if(typeof $(target).tooltip =='function'){
 		$(target).tooltip({
 			selector: "a[rel=tooltip]"
@@ -827,13 +844,16 @@ function setToolTips(target) {
 		e.preventDefault();
 		return false
 	});
+
+
+	$(target + ' [data-toggle="popover"]').popover('destroy').popover({trigger:'hover',html:true})
 }
 
 function setTabs(target, activetab) {
 	$(".tab-preloader").spin(spinnerArgs2);
 	/*
 	$(target).each(
-		function(index) {			
+		function(index) {
 			$(this).tabs().fadeIn()
 			.find(".ui-corner-all")
 			.each(
@@ -850,10 +870,17 @@ function setTabs(target, activetab) {
 
 	if(window.location.hash != "") {
 		$(target + ' a[href="' + window.location.hash + '"]').tab('show');
+
+		window.setTimeout(
+				function(){
+					$('a span.display-tab').html('<i class="mi-chevron-down"></i>');
+					}
+					, 1);
+
 	} else if(typeof(activetab) != 'undefined') {
 		try{
 			$(target + ' li::nth-child(' + (activetab + 1) + ') a').tab('show');
-		} 
+		}
 		catch(err){
 			if($(target + ' li:first a').tab){
 				$(target + ' li:first a').tab('show');
@@ -865,13 +892,13 @@ function setTabs(target, activetab) {
 
 	/*
 	$(".ui-tabs .ui-tabs .ui-tabs-nav li").each(
-			function(index) {			
+			function(index) {
 				$(this).removeClass("ui-corner-top").addClass("ui-corner-all");
 			}
 		);
-	
+
 	$(".initActiveTab").each(
-			function(index) {			
+			function(index) {
 				$(this).tabs("select",activetab);
 			}
 		);
@@ -923,33 +950,31 @@ function openFileMetaData(contenthistid,fileid,siteid,property) {
 		$("#newFileMetaContainer").dialog({
 			resizable: false,
 			modal: true,
-			width: 552,
+			width: 600,
 			title: 'Edit Image Properties',
 			position: getDialogPosition(),
 			buttons: {
-				Save:function(){
-					var fileData={exifpartial:{}};
-
-					$('.filemeta').each(function(){
-						fileData[$(this).attr('data-property')]=$(this).val();
-					});
-
-					$('.exif').each(function(){
-						fileData.exifpartial[$(this).attr('data-property')]=$(this).val();
-					});
-
-					fileData.setasdefault=$('#filemeta-setasdefault').is(':checked');
-
-					fileMetaDataAssign[property]=fileData;
-					$('#filemetadataassign').val(JSON.stringify(fileMetaDataAssign));
-					//alert($('#filemetadataassign').val());
-					$(this).dialog( "close" );
-
-				},
 				Cancel: function(){
 					 $(this).dialog( "close" );
-				}
+				},
 
+				Save: {click: function() {
+						var fileData={exifpartial:{}};
+						$('.filemeta').each(function(){
+							fileData[$(this).attr('data-property')]=$(this).val();
+						});
+						$('.exif').each(function(){
+							fileData.exifpartial[$(this).attr('data-property')]=$(this).val();
+						});
+						fileData.setasdefault=$('#filemeta-setasdefault').is(':checked');
+						fileMetaDataAssign[property]=fileData;
+						$('#filemetadataassign').val(JSON.stringify(fileMetaDataAssign));
+						//alert($('#filemetadataassign').val());
+						$(this).dialog( "close" );
+						}
+					, text: 'Save'
+					, class: 'mura-primary'
+					} // /Save
 
 			},
 			open: function() {
@@ -965,10 +990,10 @@ function openFileMetaData(contenthistid,fileid,siteid,property) {
 					if(data.indexOf('mura-primary-login-token') != -1) {
 						location.href = './';
 					}
-					
+
 					$("#newFileMetaContainer .load-inline").spin(false);
 					$('#newFileMetaContainer').html(data);
-					
+
 					if(property in fileMetaDataAssign){
 						var fileData=fileMetaDataAssign[property];
 						for(var p in fileData){
@@ -977,7 +1002,7 @@ function openFileMetaData(contenthistid,fileid,siteid,property) {
 
 						$('#filemeta-setasdefault').prop('checked',fileData.setasdefault);
 					}
-					
+
 					$('#newFileMetaContainer .htmlEditor').ckeditor({
 							toolbar: 'Basic',
 							height: 100,
@@ -1013,7 +1038,7 @@ function openFileMetaData(contenthistid,fileid,siteid,property) {
 
 		return false;
 	}
- 
+
 (function ($) {
 
 	 /* BUTTON PUBLIC CLASS DEFINITION
@@ -1033,7 +1058,7 @@ function openFileMetaData(contenthistid,fileid,siteid,property) {
 			$elm.find(".mura-file-existing").html('<div class="load-inline"></div>');
 			$elm.find('.load-inline').spin(spinnerArgs2);
 			$.ajax(url + "?" + pars)
-			.done( 
+			.done(
 				function(data) {
 					$elm.find('.load-inline').spin(false);
 					$elm.find(".mura-file-existing").html(data);
@@ -1060,10 +1085,13 @@ function openFileMetaData(contenthistid,fileid,siteid,property) {
 	    		$elm.find(".mura-file-existing").html('<div class="load-inline"></div>')
 	    		$elm.find('.load-inline').spin(spinnerArgs2);
 	    	}
+	    	if($(this).hasClass('btn')){
+		    	$(this).addClass("active").siblings().removeClass("active");
+	    	}
 	    }
 
 	    var setTab=function(tab){
-	    	
+
 	    	//if(tab.toLowerCase() != 'upload'){
 			$elm.find(".mura-file-option").find('input').val('');
 			$elm.find(".mura-file-option").find('.btn').hide();
@@ -1075,9 +1103,9 @@ function openFileMetaData(contenthistid,fileid,siteid,property) {
 			$elm.find(".mura-file-" + tab.toLowerCase()).find("input").attr('name',$opts.file);
 
 	    }
-	
+
 	    $(this.$element).find("button.mura-file-type-selector").click(clickHandler);
-	   
+
 	    $elm.find(".mura-file-option").find('input').change(
 	    	function(){
 	    		var reg1 = /^(([a-zA-Z]:)|(\\{2}\w+)\$?)(\\(\w[\w].*))+(.jpg|.jpeg|.png|.gif|.svg)$/;
@@ -1092,12 +1120,12 @@ function openFileMetaData(contenthistid,fileid,siteid,property) {
 		setTab('Upload');
 
 	  }
-	
+
 	  $.fn.fileselector = function (options) {
 	    return this.each(function () {
 	      var $this = $(this);
 	      var data = $this.data('fileselector');
-	      
+
 	      if (!data){
 	      	 $this.data('fileselector', (data = new FileSelector(this, options)) );
 	      }
@@ -1117,7 +1145,9 @@ function setFileSelectors() {
 	$('.mura-file-selector').fileselector();
 }
 
-function alertDialog(message,okAction,title,width) {
+function alertDialog(message,okAction,title,width,dialogClass) {
+
+	var width = width || 450;
 
 	if(typeof message == 'object'){
 		var config=message;
@@ -1126,25 +1156,30 @@ function alertDialog(message,okAction,title,width) {
 		title=config.title || 'Alert';
 		width=config.width || 0;
 	}
-	
+
 	title= title || 'Alert';
-	width= width || null;
+	dialogClass= dialogClass || 'dialog-warning';
 
 	var dialogConfig={
+		dialogClass: dialogClass,
 		resizable: false,
 		modal: true,
 		position: getDialogPosition(),
 		buttons: {
-			Ok: function() {
-				$(this).dialog('close');
-				if(okAction){
-					if(typeof(okAction) == 'function') {
-						okAction();
-					} else if (typeof(_okAction) == 'string'){
-						actionModal(okAction);
+			Ok: {click: function() {
+						$(this).dialog('close');
+						if(okAction){
+							if(typeof(okAction) == 'function') {
+								okAction();
+							} else if (typeof(okAction) == 'string' && okAction != ''){
+								actionModal(okAction);
+							}
+						}
 					}
-				}
-			}
+				, text: 'OK'
+				, class: 'mura-primary'
+				} // /ok
+
 		}
 	};
 
@@ -1159,12 +1194,14 @@ function alertDialog(message,okAction,title,width) {
 	return false;
 }
 
-function confirmDialog(message, yesAction, noAction,title,width) {
+function confirmDialog(message,yesAction,noAction,title,width,yesButtonText,noButtonText,dialogClass) {
+
+	var width = width || 450;
 
 	if(typeof message == 'object'){
 		var config=message;
 		message=config.message || 'Message not defined';
-		
+
 		if(config.yesAction){
 			yesAction=config.yesAction;
 		}
@@ -1172,39 +1209,53 @@ function confirmDialog(message, yesAction, noAction,title,width) {
 		if(config.noAction){
 			noAction=config.noAction;
 		}
-		
+
 		title=config.title || 'Alert';
 		width=config.width || 0;
 	}
 
 	title= title || 'Alert';
 
+	yesButtonText = yesButtonText || 'OK';
+	noButtonText = noButtonText || 'Cancel';
+	dialogClass = dialogClass || 'dialog-confirm';
+
 	var dialogConfig={
+		dialogClass: dialogClass,
 		resizable: false,
 		modal: true,
 		position: getDialogPosition(),
 		buttons: {
-			'Yes': function() {
-				$(this).dialog('close');
-				if(typeof(yesAction) == 'function') {
-					yesAction();
-				} else {
-					actionModal(yesAction);
-				}
-
-			},
-			'No': function() {		
-				if(typeof(noAction) != 'undefined') {
+			'No': { click: function() {
+				if(typeof(noAction) != 'undefined' && noAction != '') {
 					if(typeof(noAction) == 'function') {
 						noAction();
 					} else {
 						actionModal(noAction);
 					}
 				} else {
-					$(this).dialog('close');
+					$(this).dialog('destroy');
 				}
 			}
-		}
+			,text: noButtonText
+			,class: 'mura-cancel'
+			} // /no
+			
+			,'Yes': {	click: function() {
+					$(this).dialog('close');
+					if(typeof(yesAction) == 'function') {
+						yesAction();
+					} else if(yesAction != ''){
+						actionModal(yesAction);
+					}
+				}
+				,text: yesButtonText
+				,class: 'mura-primary'
+			} // /yes
+		} // /buttons
+		, close: function (event, ui) {
+        $(this).dialog('destroy');
+      } // /close
 	};
 
 	if(width){
@@ -1295,7 +1346,9 @@ function getDialogPosition() {
 	}
 	*/
 	//["top",20]
-	return "center";
+//	return "center";
+// jquery-ui update uses an object for positioning
+	return { my: "center", at: "center", of: window, collision: "fit" };
 }
 
 function openPreviewDialog(previewURL) {
@@ -1327,18 +1380,18 @@ function openPreviewDialog(previewURL) {
 		open: function(){
 
 			var $tools='<div id="mura-preview-device-selector"><p>Preview Mode</p>';
-				$tools=$tools+'<a class="mura-device-standard active" data-height="600" data-width="1075" data-mobileformat="false"><i class="icon-desktop"></i></a>';
-				$tools=$tools+'<a class="mura-device-tablet" data-height="600" data-width="768" data-mobileformat="false"><i class="icon-tablet"></i></a>';
-				$tools=$tools+'<a class="mura-device-tablet-landscape" data-height="480" data-width="1024" data-mobileformat="false"><i class="icon-tablet icon-rotate-270"></i></a>';
-				$tools=$tools+'<a class="mura-device-phone" data-height="480" data-width="320" data-mobileformat="true"><i class="icon-mobile-phone"></i></a>';
-				$tools=$tools+'<a class="mura-device-phone-landscape" data-height="250" data-width="520" data-mobileformat="true"><i class="icon-mobile-phone icon-rotate-270"></i></a>';
+				$tools=$tools+'<a class="mura-device-standard active" data-height="600" data-width="1075" data-mobileformat="false"><i class="mi-desktop"></i></a>';
+				$tools=$tools+'<a class="mura-device-tablet" data-height="600" data-width="768" data-mobileformat="false"><i class="mi-tablet"></i></a>';
+				$tools=$tools+'<a class="mura-device-tablet-landscape" data-height="480" data-width="1024" data-mobileformat="false"><i class="mi-tablet mi-rotate-270"></i></a>';
+				$tools=$tools+'<a class="mura-device-phone" data-height="480" data-width="320" data-mobileformat="true"><i class="mi-mobile-phone"></i></a>';
+				$tools=$tools+'<a class="mura-device-phone-landscape" data-height="250" data-width="520" data-mobileformat="true"><i class="mi-mobile-phone mi-rotate-270"></i></a>';
 				$tools=$tools+'</div>';
 
 			var wos=30;
 			var hos=85+39;
 
 			$('.ui-dialog').prepend($tools);
-			
+
 			$('#mura-preview-device-selector a').bind('click', function () {
 				var data=$(this).data();
 
@@ -1355,7 +1408,7 @@ function openPreviewDialog(previewURL) {
 
 			    return false;
 			});
-			
+
 		}
 	});
 
@@ -1385,7 +1438,7 @@ var spinnerArgs = {
 	// Corner roundness (0..1)
 	rotate: 0,
 	// The rotation offset
-	color: '#fff',
+	color: '#696969',
 	// #rgb or #rrggbb
 	speed: 0.9,
 	// Rounds per second
@@ -1397,7 +1450,7 @@ var spinnerArgs = {
 	// Whether to use hardware acceleration
 	className: 'spinner',
 	// The CSS class to assign to the spinner
-	zIndex: 2e9,	
+	zIndex: 2e9,
 	// The z-index (defaults to 2000000000)
 	top: 'auto',
 	// Top position relative to parent in px
@@ -1417,7 +1470,7 @@ var spinnerArgs2 = {
 	// Corner roundness (0..1)
 	rotate: 0,
 	// The rotation offset
-	color: '#000',
+	color: '#696969',
 	// #rgb or #rrggbb
 	speed: 0.9,
 	// Rounds per second
@@ -1429,7 +1482,7 @@ var spinnerArgs2 = {
 	// Whether to use hardware acceleration
 	className: 'spinner-alt',
 	// The CSS class to assign to the spinner
-	zIndex: 2e9,	
+	zIndex: 2e9,
 	// The z-index (defaults to 2000000000)
 	top: 'auto',
 	// Top position relative to parent in px
@@ -1451,7 +1504,7 @@ var spinnerArgs3 = {
 	// Corner roundness (0..1)
 	rotate: 0,
 	// The rotation offset
-	color: '#fff',
+	color: '#696969',
 	// #rgb or #rrggbb
 	speed: 0.9,
 	// Rounds per second
@@ -1463,7 +1516,7 @@ var spinnerArgs3 = {
 	// Whether to use hardware acceleration
 	className: 'spinner-alt',
 	// The CSS class to assign to the spinner
-	zIndex: 2e9,	
+	zIndex: 2e9,
 	// The z-index (defaults to 2000000000)
 	top: 'auto',
 	// Top position relative to parent in px
@@ -1488,7 +1541,7 @@ if(typeof $.ui != 'undefined'){
 			// todo: make the ul id an options config (string or object?)
 			var ul = this.element.closest("ul");
 			ul.children("li").remove();
-			
+
 			this._renderMenu( ul, items );
 			this.isNewMenu = true;
 			this.menu.refresh();
@@ -1507,14 +1560,14 @@ if(typeof $.ui != 'undefined'){
 					$( "<a>" ).attr(
 						"href", "?muraAction=cDashboard.main&siteID=" + item.id
 					).append(
-						$( "<i>" ).addClass( "icon-globe" )
+						$( "<i>" ).addClass( "mi-globe" )
 					).append( item.label )
 				).appendTo( ul );
 		},
 
 		options: {
 			create: function( event ) {
-				
+
 				// we clear the results list if search string get is using backspace for example
 				$( event.target ).keyup(function( event, ui ) {
 					var input = $( this );
@@ -1523,7 +1576,7 @@ if(typeof $.ui != 'undefined'){
 						ul.children("li").remove();
 					}
 				});
-				
+
 			}
 		}
 	});
@@ -1576,11 +1629,11 @@ function setFinders(selector){
 
 		if(completepath.toLowerCase() == 'true'){
 			finder.selectActionFunction = function(fileUrl) {
-				jQuery('input[name="' + target + '"]').val(webroot + fileDelim + fileUrl);		
+				jQuery('input[name="' + target + '"]').val(webroot + fileDelim + fileUrl);
 			};
 		} else {
 			finder.selectActionFunction = function(fileUrl) {
-				jQuery('input[name="' + target + '"]').val(fileUrl);		
+				jQuery('input[name="' + target + '"]').val(fileUrl);
 			};
 		}
 
@@ -1591,20 +1644,20 @@ function setFinders(selector){
 		} else {
 			finder.resourceType=siteid + '_User_Assets';
 		}
-		
-		finder.popup();			
+
+		finder.popup();
 
 	});
 }
 
 $(function(){
-	
+
 	setFinders(".mura-ckfinder");
 	if(typeof dtLocale != 'undefined'){
 		setDatePickers(".datepicker",dtLocale);
 	}
 	if(typeof activetab != 'undefined'){
-		setTabs(".tabs",activetab);
+		setTabs(".mura-tabs",activetab);
 	}
 	setHTMLEditors();
 	if(typeof activepanel != 'undefined'){
@@ -1617,3 +1670,9 @@ $(function(){
 
 });
 
+// table actions menu
+function showTableControls(el){
+	var optionsList = $(el).next('.actions-menu');
+	$('td.actions div.actions-menu').not('.hide').addClass('hide');
+	$(optionsList).removeClass('hide');
+};
